@@ -33,6 +33,9 @@ npm install
 npm run build
 ```
 
+The extension uses Vite and Preact. `npm start` keeps the unpacked `build`
+directory updated while developing.
+
 Open `chrome://extensions/`, enable developer mode, choose **Load unpacked**, and
 select the generated `build` directory.
 
@@ -54,7 +57,9 @@ cd android-helper
 .\gradlew.bat assembleDebug
 ```
 
-The APK is generated at `android-helper/app/build/outputs/apk/debug/app-debug.apk`.
+Debug APKs are generated under `android-helper/app/build/outputs/apk/debug`.
+Release builds are minified and split by CPU architecture to avoid bundling three
+copies of the native media tools in every download.
 See [android-helper/README.md](android-helper/README.md) for Android-specific details.
 
 ## Releases
@@ -63,7 +68,10 @@ Tags matching `v*` trigger the GitHub release workflow. A release contains:
 
 - `red-media-extension-unpacked.zip`
 - `Red Media Helper.exe`
-- `Red-Media-Mobile.apk`
+- `Red-Media-Mobile-arm64.apk` for most current Android phones
+- `Red-Media-Mobile-arm32.apk` for older 32-bit phones
+- `Red-Media-Mobile-x86_64.apk` for x86-64 devices and emulators
+- `Red-Media-Mobile-universal.apk` as the larger compatibility fallback
 
 Local extension and Windows assets can be produced with:
 

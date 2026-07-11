@@ -24,11 +24,15 @@ cd android-helper
 ./gradlew assembleDebug
 ```
 
-The debug APK is generated at:
+The build generates one APK per CPU architecture plus a universal fallback under:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/debug/
 ```
+
+Use the ARM64 APK on most current phones. The release workflow also enables code
+and resource shrinking, reducing the ARM64 package without removing download
+features.
 
 The GitHub workflow `Red Media Mobile` also builds and uploads a debug APK artifact.
 

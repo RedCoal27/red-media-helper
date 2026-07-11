@@ -55,11 +55,16 @@ jobs:
       - name: Build Red Media Mobile
         working-directory: android-helper
         shell: pwsh
-        run: .\gradlew.bat --no-daemon assembleDebug
+        run: .\gradlew.bat --no-daemon assembleRelease
 
       - name: Add Android APK to release assets
         shell: pwsh
-        run: Copy-Item android-helper/app/build/outputs/apk/debug/app-debug.apk dist/release/Red-Media-Mobile.apk
+        run: |
+          $apkDir = 'android-helper/app/build/outputs/apk/release'
+          Copy-Item "$apkDir/app-arm64-v8a-release.apk" 'dist/release/Red-Media-Mobile-arm64.apk'
+          Copy-Item "$apkDir/app-armeabi-v7a-release.apk" 'dist/release/Red-Media-Mobile-arm32.apk'
+          Copy-Item "$apkDir/app-x86_64-release.apk" 'dist/release/Red-Media-Mobile-x86_64.apk'
+          Copy-Item "$apkDir/app-universal-release.apk" 'dist/release/Red-Media-Mobile-universal.apk'
 
       - name: Resolve release tag
         id: release_tag
