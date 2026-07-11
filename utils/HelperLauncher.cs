@@ -73,6 +73,8 @@ namespace RedMediaHelperLauncher
         private TextBox jobDetailsTextBox;
         private NotifyIcon notifyIcon;
         private System.Windows.Forms.Timer timer;
+        private int refreshInProgress;
+        private bool isMovingOrResizing;
 
         public HelperForm()
         {
@@ -314,6 +316,17 @@ namespace RedMediaHelperLauncher
                 }
             };
 
+            ResizeBegin += delegate
+            {
+                isMovingOrResizing = true;
+            };
+
+            ResizeEnd += delegate
+            {
+                isMovingOrResizing = false;
+                QueueDownloadStatusRefresh();
+            };
+
             FormClosing += delegate(object sender, FormClosingEventArgs args)
             {
                 if (!isClosing)
@@ -349,7 +362,7 @@ namespace RedMediaHelperLauncher
             };
 
             timer = new System.Windows.Forms.Timer { Interval = 1000 };
-            timer.Tick += delegate { UpdateDownloadStatus(); };
+            timer.Tick += delegate { QueueDownloadStatusRefresh(); };
             timer.Start();
         }
 
@@ -699,7 +712,7 @@ namespace RedMediaHelperLauncher
                 {
                 }
 
-                UpdateDownloadStatus();
+                QueueDownloadStatusRefresh();
             }
             catch
             {
@@ -730,17 +743,60 @@ namespace RedMediaHelperLauncher
             stopSelectedButton.Enabled = true;
         }
 
-        private void UpdateDownloadStatus()
+        private void QueueDownloadStatusRefresh()
         {
-            HealthResponse health;
-            try
+            if (isMovingOrResizing || Interlocked.Exchange(ref refreshInProgress, 1) != 0)
             {
-                health = GetJson<HealthResponse>(HealthUrl);
+                return;
             }
-            catch
+
+            ThreadPool.QueueUserWorkItem(delegate
             {
-                health = null;
-            }
+                HealthResponse health = null;
+                Job[] jobs = new Job[0];
+
+                try
+                {
+                    health = GetJson<HealthResponse>(HealthUrl);
+
+                    if (health != null && health.ok)
+                    {
+                        jobs = GetJobs();
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    if (IsDisposed || !IsHandleCreated)
+                    {
+                        Interlocked.Exchange(ref refreshInProgress, 0);
+                        return;
+                    }
+
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        try
+                        {
+                            ApplyDownloadStatus(health, jobs);
+                        }
+                        finally
+                        {
+                            Interlocked.Exchange(ref refreshInProgress, 0);
+                        }
+                    });
+                }
+                catch
+                {
+                    Interlocked.Exchange(ref refreshInProgress, 0);
+                }
+            });
+        }
+
+        private void ApplyDownloadStatus(HealthResponse health, Job[] jobs)
+        {
 
             if (health == null || !health.ok)
             {
@@ -758,11 +814,11 @@ namespace RedMediaHelperLauncher
             );
             diagnosticsLabel.ForeColor = Color.LightGreen;
 
-            Job[] jobs = GetJobs();
-
             if (jobs.Length == 0)
             {
                 jobsListView.Items.Clear();
+                UpdateSelectedJobDetails();
+                UpdateStatusFromJobs(jobs);
                 return;
             }
 
