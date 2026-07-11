@@ -42,7 +42,7 @@ const FFMPEG_LANGUAGE_CODES = {
   'zh-hans': 'chi',
   'zh-hant': 'chi',
 };
-const HELPER_VERSION = process.env.RED_MEDIA_HELPER_VERSION || '1.4.1';
+const HELPER_VERSION = process.env.RED_MEDIA_HELPER_VERSION || '1.5.0';
 
 let cachedYtDlp = null;
 let latestJobId = null;

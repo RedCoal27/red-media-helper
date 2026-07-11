@@ -19,9 +19,26 @@ class DownloadRepository(
 ) {
     val downloads: Flow<List<DownloadEntity>> = dao.observeAll()
 
-    suspend fun enqueue(analysis: MediaAnalysis, format: FormatChoice): String {
+    suspend fun enqueue(
+        analysis: MediaAnalysis,
+        format: FormatChoice,
+        selectedAudioIds: Set<String>,
+        requestedContainer: String,
+        includeSubtitles: Boolean,
+    ): String {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
+        val audioIds = analysis.audioTracks.map(AudioTrackChoice::formatId).filter(selectedAudioIds::contains)
+        val container = when (requestedContainer) {
+            "mkv", "mp4" -> requestedContainer
+            else -> if (audioIds.size > 1) "mkv" else "mp4"
+        }
+        val selector = if (format.audioOnly || format.videoSelector == null) {
+            format.selector
+        } else {
+            val audioSelector = audioIds.takeIf(List<String>::isNotEmpty)?.joinToString("+") ?: "bestaudio"
+            "${format.videoSelector}+$audioSelector/${format.videoSelector}+bestaudio/best"
+        }
         dao.upsert(
             DownloadEntity(
                 id = id,
@@ -31,9 +48,11 @@ class DownloadRepository(
                 userAgent = analysis.userAgent,
                 title = analysis.title,
                 thumbnailUrl = analysis.thumbnailUrl,
-                formatSelector = format.selector,
+                formatSelector = selector,
                 formatLabel = format.label,
                 audioOnly = format.audioOnly,
+                mergeOutputFormat = container,
+                includeSubtitles = includeSubtitles,
                 status = DownloadStatus.QUEUED,
                 progress = 0f,
                 etaSeconds = 0,

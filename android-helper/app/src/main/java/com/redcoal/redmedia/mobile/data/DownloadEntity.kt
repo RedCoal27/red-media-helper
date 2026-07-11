@@ -15,6 +15,8 @@ data class DownloadEntity(
     val formatSelector: String,
     val formatLabel: String,
     val audioOnly: Boolean,
+    val mergeOutputFormat: String,
+    val includeSubtitles: Boolean,
     val status: String,
     val progress: Float,
     val etaSeconds: Long,

@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.UUID
 
 data class FormatChoice(
     val id: String,
@@ -16,6 +19,14 @@ data class FormatChoice(
     val selector: String,
     val audioOnly: Boolean = false,
     val estimatedBytes: Long = 0,
+    val videoSelector: String? = null,
+)
+
+data class AudioTrackChoice(
+    val formatId: String,
+    val label: String,
+    val language: String,
+    val detail: String,
 )
 
 data class MediaAnalysis(
@@ -25,6 +36,7 @@ data class MediaAnalysis(
     val thumbnailUrl: String?,
     val durationSeconds: Int,
     val formats: List<FormatChoice>,
+    val audioTracks: List<AudioTrackChoice> = emptyList(),
     val referer: String? = null,
     val cookies: String? = null,
     val userAgent: String? = null,
@@ -65,6 +77,13 @@ class MediaAnalyzer(private val context: Context) {
         val request = YoutubeDLRequest(url)
             .addOption("--no-playlist")
             .addOption("--no-warnings")
+            .addOption("--dump-single-json")
+            .addOption("--skip-download")
+        if (isYouTubeUrl(url)) {
+            request
+                .addOption("--js-runtimes", "quickjs")
+                .addOption("--extractor-args", "youtube:player_client=all")
+        }
         browserContext?.referer?.takeIf { it.isNotBlank() }?.let {
             request.addOption("--referer", it)
         }
@@ -74,12 +93,14 @@ class MediaAnalyzer(private val context: Context) {
         browserContext?.userAgent?.takeIf { it.isNotBlank() }?.let {
             request.addOption("--user-agent", it)
         }
-        val info = YoutubeDL.getInstance().getInfo(request)
-        val formats = info.formats.orEmpty()
+        val response = YoutubeDL.getInstance().execute(request, "inspect-${UUID.randomUUID()}")
+        val info = JSONObject(response.out.trim())
+        val formats = info.optJSONArray("formats") ?: JSONArray()
+        val audioTracks = extractAudioTracks(formats)
         val heights = formats
-            .asSequence()
-            .filter { it.height >= 144 && !it.vcodec.isNullOrBlank() && it.vcodec != "none" }
-            .map { it.height }
+            .jsonObjects()
+            .filter { it.optInt("height") >= 144 && it.optString("vcodec") != "none" }
+            .map { it.optInt("height") }
             .distinct()
             .sortedDescending()
             .take(8)
@@ -90,26 +111,28 @@ class MediaAnalyzer(private val context: Context) {
                 FormatChoice(
                     id = "best",
                     label = "Best quality",
-                    detail = "Best video · all audio tracks when available",
-                    selector = "bestvideo+mergeall[vcodec=none]/bestvideo+bestaudio/best",
+                    detail = audioDetail(audioTracks.size),
+                    selector = "bestvideo+bestaudio/best",
+                    videoSelector = "bestvideo",
                 )
             )
 
             heights.forEach { height ->
-                val approx = formats
-                    .filter { it.height == height }
-                    .maxOfOrNull { maxOf(it.fileSize, it.fileSizeApproximate) }
+                val approx = formats.jsonObjects()
+                    .filter { it.optInt("height") == height }
+                    .maxOfOrNull { maxOf(it.optLong("filesize"), it.optLong("filesize_approx")) }
                     ?: 0L
                 add(
                     FormatChoice(
                         id = "video-$height",
                         label = "${height}p",
                         detail = listOfNotNull(
-                            "Video + available audio tracks",
+                            audioDetail(audioTracks.size),
                             approx.takeIf { it > 0 }?.let(::formatBytes),
                         ).joinToString(" · "),
-                        selector = "bestvideo[height<=$height]+mergeall[vcodec=none]/bestvideo[height<=$height]+bestaudio/best[height<=$height]",
+                        selector = "bestvideo[height<=$height]+bestaudio/best[height<=$height]",
                         estimatedBytes = approx,
+                        videoSelector = "bestvideo[height<=$height]",
                     )
                 )
             }
@@ -127,17 +150,80 @@ class MediaAnalyzer(private val context: Context) {
 
         MediaAnalysis(
             sourceUrl = url,
-            title = info.title ?: info.fulltitle ?: "Untitled media",
-            subtitle = info.uploader ?: info.extractor ?: "Online media",
-            thumbnailUrl = info.thumbnail,
-            durationSeconds = info.duration,
+            title = info.optString("title").ifBlank { info.optString("fulltitle", "Untitled media") },
+            subtitle = info.optString("uploader").ifBlank { info.optString("extractor", "Online media") },
+            thumbnailUrl = info.optString("thumbnail").takeIf(String::isNotBlank),
+            durationSeconds = info.optInt("duration"),
             formats = choices,
+            audioTracks = audioTracks,
             referer = browserContext?.referer,
             cookies = browserContext?.cookies,
             userAgent = browserContext?.userAgent,
         )
     }
 }
+
+private fun JSONArray.jsonObjects(): Sequence<JSONObject> = sequence {
+    for (index in 0 until length()) optJSONObject(index)?.let { yield(it) }
+}
+
+private fun extractAudioTracks(formats: JSONArray): List<AudioTrackChoice> {
+    data class RankedTrack(val choice: AudioTrackChoice, val score: Int)
+    val tracks = linkedMapOf<String, RankedTrack>()
+
+    formats.jsonObjects()
+        .filter { format ->
+            format.optString("format_id").isNotBlank() &&
+                format.optString("acodec") !in setOf("", "none") &&
+                format.optString("vcodec", "none") == "none"
+        }
+        .forEach { format ->
+            val metadata = format.optJSONObject("audio_track")
+            val language = listOf(
+                format.optString("language"),
+                metadata?.optString("lang").orEmpty(),
+                metadata?.optString("languageCode").orEmpty(),
+                metadata?.optString("language").orEmpty(),
+                metadata?.optString("id").orEmpty(),
+            ).firstOrNull(String::isNotBlank) ?: return@forEach
+            val label = listOf(
+                metadata?.optString("displayName").orEmpty(),
+                metadata?.optString("name").orEmpty(),
+                metadata?.optString("language").orEmpty(),
+                format.optString("format_note"),
+                language,
+            ).firstOrNull(String::isNotBlank) ?: language
+            val formatId = format.optString("format_id")
+            val description = "$formatId ${format.optString("format")} ${format.optString("format_note")} $label"
+            val bitrate = maxOf(format.optInt("abr"), format.optInt("tbr"))
+            val score = bitrate +
+                (if (format.optString("ext") == "m4a") 20 else 0) +
+                (if (description.contains("original", true)) 10 else 0) -
+                (if (Regex("\\bdrc\\b|-drc", RegexOption.IGNORE_CASE).containsMatchIn(description)) 1_000 else 0)
+            val key = language.lowercase().replace('_', '-')
+            val choice = AudioTrackChoice(
+                formatId = formatId,
+                label = label,
+                language = language,
+                detail = listOf(format.optString("ext"), bitrate.takeIf { it > 0 }?.let { "$it kbps" })
+                    .filterNotNull().filter(String::isNotBlank).joinToString(" · "),
+            )
+            if (tracks[key]?.score?.let { score > it } != false) tracks[key] = RankedTrack(choice, score)
+        }
+
+    return tracks.values.map(RankedTrack::choice).sortedBy { it.label.lowercase() }
+}
+
+private fun audioDetail(count: Int) = when (count) {
+    0 -> "Video + best available audio"
+    1 -> "Video + 1 audio language"
+    else -> "Video + $count audio languages"
+}
+
+internal fun isYouTubeUrl(value: String) = runCatching {
+    val host = java.net.URI(value).host.orEmpty().lowercase()
+    host == "youtu.be" || host.endsWith("youtube.com")
+}.getOrDefault(false)
 
 fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "Unknown size"

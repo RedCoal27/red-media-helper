@@ -43,6 +43,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedFormatId = MutableStateFlow<String?>(null)
     val selectedFormatId: StateFlow<String?> = _selectedFormatId.asStateFlow()
 
+    private val _selectedAudioIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedAudioIds: StateFlow<Set<String>> = _selectedAudioIds.asStateFlow()
+
+    private val _outputContainer = MutableStateFlow("auto")
+    val outputContainer: StateFlow<String> = _outputContainer.asStateFlow()
+
+    private val _includeSubtitles = MutableStateFlow(false)
+    val includeSubtitles: StateFlow<Boolean> = _includeSubtitles.asStateFlow()
+
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
@@ -63,6 +72,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _url.value = extracted ?: value.trim()
         _analysis.value = AnalysisState.Idle
         _selectedFormatId.value = null
+        _selectedAudioIds.value = emptySet()
         if (autoAnalyze && extracted != null) analyze()
     }
 
@@ -129,8 +139,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 result.onSuccess { media ->
                     _url.value = pageUrl
-                    _selectedFormatId.value = media.formats.firstOrNull()?.id
-                    _analysis.value = AnalysisState.Ready(media.copy(sourceUrl = candidate.url))
+                    setReadyMedia(media.copy(sourceUrl = candidate.url))
                     _selectedTab.value = 0
                     return@launch
                 }
@@ -148,6 +157,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedFormatId.value = id
     }
 
+    fun toggleAudioTrack(formatId: String) {
+        _selectedAudioIds.update { selected ->
+            if (formatId in selected) selected - formatId else selected + formatId
+        }
+    }
+
+    fun selectAllAudioTracks() {
+        val media = (_analysis.value as? AnalysisState.Ready)?.media ?: return
+        _selectedAudioIds.value = media.audioTracks.map { it.formatId }.toSet()
+    }
+
+    fun clearAudioTracks() {
+        _selectedAudioIds.value = emptySet()
+    }
+
+    fun setOutputContainer(value: String) {
+        if (value in setOf("auto", "mkv", "mp4")) _outputContainer.value = value
+    }
+
+    fun setIncludeSubtitles(value: Boolean) {
+        _includeSubtitles.value = value
+    }
+
     fun analyze() {
         val target = extractUrl(_url.value)
         if (target == null) {
@@ -160,7 +192,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _analysis.value = runCatching { analyzer.analyze(target) }
                 .fold(
                     onSuccess = { media ->
-                        _selectedFormatId.value = media.formats.firstOrNull()?.id
+                        setReadyMedia(media)
                         AnalysisState.Ready(media)
                     },
                     onFailure = { error ->
@@ -176,7 +208,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val ready = _analysis.value as? AnalysisState.Ready ?: return
         val selected = ready.media.formats.firstOrNull { it.id == _selectedFormatId.value } ?: return
         viewModelScope.launch {
-            repository.enqueue(ready.media, selected)
+            repository.enqueue(
+                analysis = ready.media,
+                format = selected,
+                selectedAudioIds = _selectedAudioIds.value,
+                requestedContainer = _outputContainer.value,
+                includeSubtitles = _includeSubtitles.value,
+            )
             _selectedTab.value = 2
         }
     }
@@ -203,7 +241,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }.fold(
                 onSuccess = { media ->
-                    _selectedFormatId.value = media.formats.firstOrNull()?.id
+                    setReadyMedia(media)
                     AnalysisState.Ready(media)
                 },
                 onFailure = { error -> AnalysisState.Error(userFacingError(error, "Unable to inspect this link")) },
@@ -236,5 +274,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return Regex("(?:^|/)(?:embed|e|v|video|watch|player|play|stream|file|f|d)(?:/|[-_.?=])")
                 .containsMatchIn(runCatching { java.net.URI(value).rawPath + "?" + java.net.URI(value).rawQuery }.getOrDefault(normalized))
         }
+    }
+
+    private fun setReadyMedia(media: MediaAnalysis) {
+        _selectedFormatId.value = media.formats.firstOrNull()?.id
+        _selectedAudioIds.value = media.audioTracks.map { it.formatId }.toSet()
+        _analysis.value = AnalysisState.Ready(media)
     }
 }

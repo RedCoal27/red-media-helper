@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -193,6 +195,9 @@ private fun NewDownloadScreen(
     val url by viewModel.url.collectAsStateWithLifecycle()
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val selectedFormatId by viewModel.selectedFormatId.collectAsStateWithLifecycle()
+    val selectedAudioIds by viewModel.selectedAudioIds.collectAsStateWithLifecycle()
+    val outputContainer by viewModel.outputContainer.collectAsStateWithLifecycle()
+    val includeSubtitles by viewModel.includeSubtitles.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
 
     LazyColumn(
@@ -291,7 +296,15 @@ private fun NewDownloadScreen(
                 MediaResult(
                     media = state.media,
                     selectedFormatId = selectedFormatId,
+                    selectedAudioIds = selectedAudioIds,
+                    outputContainer = outputContainer,
+                    includeSubtitles = includeSubtitles,
                     onSelectFormat = viewModel::selectFormat,
+                    onToggleAudio = viewModel::toggleAudioTrack,
+                    onSelectAllAudio = viewModel::selectAllAudioTracks,
+                    onClearAudio = viewModel::clearAudioTracks,
+                    onSelectContainer = viewModel::setOutputContainer,
+                    onIncludeSubtitles = viewModel::setIncludeSubtitles,
                     onDownload = viewModel::startDownload,
                 )
             }
@@ -492,9 +505,18 @@ private const val MEDIA_DISCOVERY_SCRIPT = """
 private fun MediaResult(
     media: MediaAnalysis,
     selectedFormatId: String?,
+    selectedAudioIds: Set<String>,
+    outputContainer: String,
+    includeSubtitles: Boolean,
     onSelectFormat: (String) -> Unit,
+    onToggleAudio: (String) -> Unit,
+    onSelectAllAudio: () -> Unit,
+    onClearAudio: () -> Unit,
+    onSelectContainer: (String) -> Unit,
+    onIncludeSubtitles: (Boolean) -> Unit,
     onDownload: () -> Unit,
 ) {
+    val selectedFormat = media.formats.firstOrNull { it.id == selectedFormatId }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -538,6 +560,84 @@ private fun MediaResult(
                     onClick = { onSelectFormat(format.id) },
                 )
                 if (index < media.formats.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+            }
+        }
+
+        if (media.audioTracks.isNotEmpty() && selectedFormat?.audioOnly != true) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column {
+                        Text("Audio languages", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${selectedAudioIds.size} of ${media.audioTracks.size} selected",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(onClick = onClearAudio, shape = RoundedCornerShape(8.dp)) { Text("None") }
+                        OutlinedButton(onClick = onSelectAllAudio, shape = RoundedCornerShape(8.dp)) { Text("All") }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                media.audioTracks.forEach { track ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { onToggleAudio(track.formatId) }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = track.formatId in selectedAudioIds,
+                            onCheckedChange = { onToggleAudio(track.formatId) },
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(track.label, fontWeight = FontWeight.Medium)
+                            Text(
+                                listOf(track.language, track.detail).filter(String::isNotBlank).joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (selectedFormat?.audioOnly != true) Column {
+            Text("Container", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            listOf(
+                "auto" to "Auto (MKV for multiple audio tracks)",
+                "mkv" to "MKV",
+                "mp4" to "MP4",
+            ).forEach { (value, label) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { onSelectContainer(value) }.padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = outputContainer == value, onClick = { onSelectContainer(value) })
+                    Spacer(Modifier.width(6.dp))
+                    Text(label)
+                }
+            }
+        }
+
+        if (selectedFormat?.audioOnly != true) Row(
+            modifier = Modifier.fillMaxWidth().clickable { onIncludeSubtitles(!includeSubtitles) }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = includeSubtitles, onCheckedChange = onIncludeSubtitles)
+            Spacer(Modifier.width(6.dp))
+            Column {
+                Text("Embed subtitles", fontWeight = FontWeight.Medium)
+                Text(
+                    "Include available manual and automatic subtitles",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

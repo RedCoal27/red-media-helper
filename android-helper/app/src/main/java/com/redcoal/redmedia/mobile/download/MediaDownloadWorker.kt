@@ -73,6 +73,11 @@ class MediaDownloadWorker(
             download.userAgent?.takeIf { it.isNotBlank() }?.let {
                 request.addOption("--user-agent", it)
             }
+            if (isYouTubeUrl(download.sourceUrl)) {
+                request
+                    .addOption("--js-runtimes", "quickjs")
+                    .addOption("--extractor-args", "youtube:player_client=all")
+            }
 
             if (download.audioOnly) {
                 request
@@ -82,7 +87,14 @@ class MediaDownloadWorker(
             } else {
                 request
                     .addOption("--audio-multistreams")
-                    .addOption("--merge-output-format", "mkv")
+                    .addOption("--merge-output-format", download.mergeOutputFormat)
+                if (download.includeSubtitles) {
+                    request
+                        .addOption("--write-subs")
+                        .addOption("--write-auto-subs")
+                        .addOption("--sub-langs", "all")
+                        .addOption("--embed-subs")
+                }
             }
 
             var finalPath: String? = download.filePath
