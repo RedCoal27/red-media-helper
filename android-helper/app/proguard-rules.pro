@@ -1,5 +1,5 @@
 -keep class com.yausername.youtubedl_android.** { *; }
 -keep class com.yausername.ffmpeg.** { *; }
--keep class org.apache.commons.compress.** { *; }
--keep interface org.apache.commons.compress.** { *; }
+-keep class org.apache.commons.compress.archivers.zip.** { *; }
+-keep interface org.apache.commons.compress.archivers.zip.** { *; }
 -keep class com.redcoal.redmedia.mobile.data.** { *; }
