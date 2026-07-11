@@ -54,7 +54,9 @@ type DownloadOption = {
   referer?: string;
   audioTracks?: AudioTrack[];
   includesAllAudioTracks?: boolean;
-  mergeOutputFormat?: 'mp4' | 'mkv';
+  mergeOutputFormat?: 'mp4' | 'mkv' | 'mp3';
+  videoSelector?: string;
+  audioOnly?: boolean;
 };
 
 type DownloadJob = {
@@ -62,7 +64,23 @@ type DownloadJob = {
   label: string;
   status: string;
   percent: number;
+  stage?: string;
+  stageLabel?: string;
+  stagePercent?: number;
+  part?: number;
+  partsTotal?: number;
+  speed?: string;
   message: string;
+};
+
+type HelperDiagnostics = {
+  helperVersion?: string;
+  ytDlpVersion?: string | null;
+  ffmpegVersion?: string | null;
+  aria2Version?: string | null;
+  nodeVersion?: string | null;
+  downloadDir?: string;
+  freeBytes?: number;
 };
 
 type AudioTrack = {
@@ -299,7 +317,21 @@ const enrichDownloadOptions = async (options: DownloadOption[]) => {
   return enrichedOptions;
 };
 
-const requestYouTubeDownload = async (option: DownloadOption) => {
+const requestYouTubeDownload = async (
+  option: DownloadOption,
+  settings: {
+    container: 'auto' | 'mp4' | 'mkv';
+    includeSubtitles: boolean;
+    selectedAudioIds: string[];
+  }
+) => {
+  const mergeOutputFormat = option.audioOnly
+    ? 'mp3'
+    : settings.includeSubtitles && settings.container === 'auto'
+    ? 'mkv'
+    : settings.container === 'auto'
+    ? option.mergeOutputFormat
+    : settings.container;
   const response = await fetch(`${YTDLP_HELPER_URL}/download`, {
     method: 'POST',
     headers: {
@@ -311,8 +343,12 @@ const requestYouTubeDownload = async (option: DownloadOption) => {
       label: option.label,
       filename: option.filename,
       referer: option.referer,
-      mergeOutputFormat: option.mergeOutputFormat,
+      mergeOutputFormat,
       audioTracks: option.audioTracks,
+      videoSelector: option.videoSelector,
+      audioOnly: option.audioOnly,
+      includeSubtitles: settings.includeSubtitles,
+      selectedAudioIds: settings.selectedAudioIds,
     }),
   });
   const data = await response.json().catch(() => null);
@@ -358,6 +394,10 @@ const Popup: React.FC = () => {
   const [isStartingDownload, setIsStartingDownload] = useState(false);
   const [downloadJobs, setDownloadJobs] = useState<DownloadJob[]>([]);
   const [areDownloadJobsVisible, setAreDownloadJobsVisible] = useState(true);
+  const [helperDiagnostics, setHelperDiagnostics] = useState<HelperDiagnostics | null>(null);
+  const [downloadContainer, setDownloadContainer] = useState<'auto' | 'mp4' | 'mkv'>('auto');
+  const [includeSubtitles, setIncludeSubtitles] = useState(false);
+  const [selectedAudioIds, setSelectedAudioIds] = useState<string[]>([]);
   const [audioLevels, setAudioLevels] = useState<number[]>(
     LOGO_BARS.map(() => 0)
   );
@@ -448,6 +488,30 @@ const Popup: React.FC = () => {
 
   useEffect(() => {
     applyToSelectRef?.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const tracks = downloadOptions.find((option) => option.audioTracks?.length)?.audioTracks || [];
+    setSelectedAudioIds(tracks.map((track) => track.formatId));
+  }, [downloadOptions]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDiagnostics = async () => {
+      try {
+        const response = await fetch(`${YTDLP_HELPER_URL}/health`);
+        const data = await response.json();
+        if (isMounted && data?.ok) setHelperDiagnostics(data);
+      } catch (error) {
+        if (isMounted) setHelperDiagnostics(null);
+      }
+    };
+    loadDiagnostics();
+    const interval = window.setInterval(loadDiagnostics, 15000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -809,7 +873,11 @@ const Popup: React.FC = () => {
 
     if (option.source === 'companion') {
       try {
-        const jobId = await requestYouTubeDownload(option);
+        const jobId = await requestYouTubeDownload(option, {
+          container: downloadContainer,
+          includeSubtitles,
+          selectedAudioIds,
+        });
 
         setDownloadJobs((jobs) => [
           {
@@ -908,7 +976,7 @@ const Popup: React.FC = () => {
             </div>
           </div>
           <div className="u-flex u-flex-direction-column">
-            <h1 className="App-title">Red Media</h1>
+            <h1 className="App-title">Red Media Helper</h1>
           </div>
         </div>
         {isEnabled ? (
@@ -1032,8 +1100,19 @@ const Popup: React.FC = () => {
                 type="button"
                 onClick={handleApplyToMediaButtonClick}
               >
-                Apply To Media
+                Apply To Default
               </button>
+            </div>
+
+            <div className="App-helper-status u-margin-top-15">
+              <span className={helperDiagnostics ? 'is-online' : 'is-offline'}>
+                {helperDiagnostics ? 'Helper ready' : 'Helper offline'}
+              </span>
+              {helperDiagnostics && (
+                <small>
+                  v{helperDiagnostics.helperVersion || '?'} · yt-dlp {helperDiagnostics.ytDlpVersion || 'missing'} · {formatBytes(helperDiagnostics.freeBytes)} free
+                </small>
+              )}
             </div>
 
             <div className="u-flex u-jc-space-evenly">
@@ -1073,6 +1152,27 @@ const Popup: React.FC = () => {
                   >
                     Hide
                   </button>
+                </div>
+                <div className="App-download-settings">
+                  <label>
+                    Container
+                    <select
+                      value={downloadContainer}
+                      onChange={(event) => setDownloadContainer((event.target as HTMLSelectElement).value as 'auto' | 'mp4' | 'mkv')}
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="mkv">MKV</option>
+                      <option value="mp4">MP4</option>
+                    </select>
+                  </label>
+                  <label className="App-check-row">
+                    <input
+                      type="checkbox"
+                      checked={includeSubtitles}
+                      onChange={(event) => setIncludeSubtitles((event.target as HTMLInputElement).checked)}
+                    />
+                    Embed available subtitles
+                  </label>
                 </div>
                 {downloadOptions.map((option) => (
                   <button
@@ -1122,7 +1222,14 @@ const Popup: React.FC = () => {
                       max={100}
                       value={downloadJob.percent || 0}
                     />
-                    <small>{downloadJob.message}</small>
+                    <div className="App-download-stage">
+                      <span>{downloadJob.stageLabel || downloadJob.status}</span>
+                      {!!downloadJob.speed && <span>{downloadJob.speed}</span>}
+                    </div>
+                    {typeof downloadJob.stagePercent === 'number' && downloadJob.stage === 'downloading' && (
+                      <small>Current file: {Math.round(downloadJob.stagePercent)}%</small>
+                    )}
+                    <small title={downloadJob.message}>{downloadJob.message}</small>
                   </div>
                 ))}
               </div>
@@ -1130,18 +1237,30 @@ const Popup: React.FC = () => {
 
             {!!downloadOptions.some((option) => option.audioTracks?.length) && (
               <div className="App-audio-tracks u-margin-top-15">
-                <strong>Audio Tracks</strong>
+                <strong>Audio languages</strong>
                 {(
                   downloadOptions.find((option) => option.audioTracks?.length)
                     ?.audioTracks || []
                 ).map((track) => (
-                  <div
+                  <label
                     className="App-audio-track"
                     key={`${track.formatId}-${track.language}`}
                   >
-                    <span>{track.label}</span>
+                    <span>
+                      <input
+                        type="checkbox"
+                        checked={selectedAudioIds.includes(track.formatId)}
+                        onChange={(event) => {
+                          const checked = (event.target as HTMLInputElement).checked;
+                          setSelectedAudioIds((ids) => checked
+                            ? [...ids, track.formatId]
+                            : ids.filter((id) => id !== track.formatId));
+                        }}
+                      />
+                      {track.label}
+                    </span>
                     <small>{track.language}</small>
-                  </div>
+                  </label>
                 ))}
               </div>
             )}

@@ -40,13 +40,27 @@ jobs:
       - name: Install extension dependencies
         run: npm ci
 
+      - name: Test extension and companion contracts
+        run: npm test
+
       - name: Build extension and Windows helper
         run: npm run package:release
 
       - name: Build optimized Android APKs
         working-directory: android-helper
         shell: pwsh
-        run: .\gradlew.bat --no-daemon assembleRelease lintRelease
+        env:
+          RED_MEDIA_KEYSTORE_BASE64: ${{ secrets.RED_MEDIA_KEYSTORE_BASE64 }}
+          RED_MEDIA_KEYSTORE_PASSWORD: ${{ secrets.RED_MEDIA_KEYSTORE_PASSWORD }}
+          RED_MEDIA_KEY_ALIAS: ${{ secrets.RED_MEDIA_KEY_ALIAS }}
+          RED_MEDIA_KEY_PASSWORD: ${{ secrets.RED_MEDIA_KEY_PASSWORD }}
+        run: |
+          if ($env:RED_MEDIA_KEYSTORE_BASE64) {
+            $keystore = Join-Path $env:RUNNER_TEMP 'red-media-release.jks'
+            [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:RED_MEDIA_KEYSTORE_BASE64))
+            $env:RED_MEDIA_KEYSTORE_PATH = $keystore
+          }
+          .\gradlew.bat --no-daemon assembleRelease lintRelease
 
       - name: Collect preview files
         shell: pwsh

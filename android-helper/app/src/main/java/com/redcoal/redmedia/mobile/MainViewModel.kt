@@ -185,6 +185,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resume(download: DownloadEntity) = viewModelScope.launch { repository.resume(download.id) }
     fun retry(download: DownloadEntity) = viewModelScope.launch { repository.retry(download.id) }
     fun delete(download: DownloadEntity) = viewModelScope.launch { repository.delete(download.id) }
+    fun reuse(download: DownloadEntity) {
+        _url.value = download.sourceUrl
+        _selectedFormatId.value = null
+        _selectedTab.value = 0
+        viewModelScope.launch {
+            _analysis.value = AnalysisState.Loading
+            _analysis.value = runCatching {
+                analyzer.analyze(
+                    download.sourceUrl,
+                    BrowserRequestContext(
+                        pageUrl = download.referer ?: download.sourceUrl,
+                        referer = download.referer ?: download.sourceUrl,
+                        cookies = download.cookies,
+                        userAgent = download.userAgent,
+                    ),
+                )
+            }.fold(
+                onSuccess = { media ->
+                    _selectedFormatId.value = media.formats.firstOrNull()?.id
+                    AnalysisState.Ready(media)
+                },
+                onFailure = { error -> AnalysisState.Error(error.message ?: "Unable to inspect this link") },
+            )
+        }
+    }
 
     companion object {
         private val urlRegex = Regex("https?://[^\\s<>]+", RegexOption.IGNORE_CASE)

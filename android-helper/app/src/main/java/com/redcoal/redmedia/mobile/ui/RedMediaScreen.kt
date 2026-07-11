@@ -94,7 +94,10 @@ fun RedMediaRoot(
 ) {
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
-    val activeCount = downloads.count { it.status == DownloadStatus.RUNNING || it.status == DownloadStatus.QUEUED }
+    val activeCount = downloads.count {
+        it.status == DownloadStatus.RUNNING || it.status == DownloadStatus.QUEUED ||
+            it.status == DownloadStatus.PROCESSING
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -176,6 +179,7 @@ fun RedMediaRoot(
                 onResume = viewModel::resume,
                 onRetry = viewModel::retry,
                 onDelete = viewModel::delete,
+                onReuse = viewModel::reuse,
             )
         }
     }
@@ -407,6 +411,16 @@ private fun BrowserScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                candidates.take(3).forEach { candidate ->
+                    Text(
+                        candidate.url.substringAfter("://").substringBefore('?'),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
@@ -567,6 +581,7 @@ private fun DownloadsScreen(
     onResume: (DownloadEntity) -> Unit,
     onRetry: (DownloadEntity) -> Unit,
     onDelete: (DownloadEntity) -> Unit,
+    onReuse: (DownloadEntity) -> Unit,
 ) {
     if (downloads.isEmpty()) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -595,7 +610,7 @@ private fun DownloadsScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
     ) {
         items(downloads, key = { it.id }) { download ->
-            DownloadRow(download, onPause, onResume, onRetry, onDelete)
+            DownloadRow(download, onPause, onResume, onRetry, onDelete, onReuse)
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
@@ -611,6 +626,7 @@ private fun DownloadRow(
     onResume: (DownloadEntity) -> Unit,
     onRetry: (DownloadEntity) -> Unit,
     onDelete: (DownloadEntity) -> Unit,
+    onReuse: (DownloadEntity) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -634,7 +650,7 @@ private fun DownloadRow(
                     color = statusColor(download.status),
                 )
             }
-            DownloadActions(download, onPause, onResume, onRetry, onDelete)
+            DownloadActions(download, onPause, onResume, onRetry, onDelete, onReuse)
         }
 
         Spacer(Modifier.height(10.dp))
@@ -677,9 +693,10 @@ private fun DownloadActions(
     onResume: (DownloadEntity) -> Unit,
     onRetry: (DownloadEntity) -> Unit,
     onDelete: (DownloadEntity) -> Unit,
+    onReuse: (DownloadEntity) -> Unit,
 ) {
     when (download.status) {
-        DownloadStatus.RUNNING, DownloadStatus.QUEUED -> IconButton(onClick = { onPause(download) }) {
+        DownloadStatus.RUNNING, DownloadStatus.QUEUED, DownloadStatus.PROCESSING -> IconButton(onClick = { onPause(download) }) {
             Icon(Icons.Default.Pause, contentDescription = "Pause")
         }
         DownloadStatus.PAUSED -> IconButton(onClick = { onResume(download) }) {
@@ -690,7 +707,13 @@ private fun DownloadActions(
         }
         else -> Unit
     }
-    if (download.status != DownloadStatus.RUNNING && download.status != DownloadStatus.QUEUED) {
+    if (download.status == DownloadStatus.COMPLETE) {
+        IconButton(onClick = { onReuse(download) }) {
+            Icon(Icons.Default.VideoLibrary, contentDescription = "Download another format")
+        }
+    }
+    if (download.status != DownloadStatus.RUNNING && download.status != DownloadStatus.QUEUED &&
+        download.status != DownloadStatus.PROCESSING) {
         IconButton(onClick = { onDelete(download) }) {
             Icon(Icons.Default.Delete, contentDescription = "Delete download")
         }
@@ -709,6 +732,7 @@ private fun statusLabel(status: String): String = when (status) {
     DownloadStatus.QUEUED -> "Queued"
     DownloadStatus.RUNNING -> "Downloading"
     DownloadStatus.PAUSED -> "Paused"
+    DownloadStatus.PROCESSING -> "Processing"
     DownloadStatus.COMPLETE -> "Complete"
     DownloadStatus.FAILED -> "Failed"
     else -> status

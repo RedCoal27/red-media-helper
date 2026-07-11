@@ -28,12 +28,21 @@ function Copy-RequiredItem {
   Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
 }
 
+function Invoke-NpmScript {
+  param([string]$Name)
+
+  & npm run $Name
+  if ($LASTEXITCODE -ne 0) {
+    throw "npm run $Name failed with exit code $LASTEXITCODE."
+  }
+}
+
 Reset-Directory $releaseDir
 
 Push-Location $root
 try {
-  npm run build
-  npm run build:helper
+  Invoke-NpmScript 'build'
+  Invoke-NpmScript 'build:helper'
 
   if (-not (Test-Path (Join-Path $root 'build\manifest.json'))) {
     throw 'Extension build output is missing build\manifest.json.'

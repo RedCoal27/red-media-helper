@@ -103,6 +103,21 @@ function Test-HelperAlive {
   }
 }
 
+function Update-HelperDiagnostics {
+  try {
+    $health = Invoke-RestMethod -Uri 'http://127.0.0.1:47829/health' -TimeoutSec 2
+    if ($health.ok -eq $true) {
+      $free = if ([double]$health.freeBytes -gt 0) { '{0:N1} GB free' -f ([double]$health.freeBytes / 1GB) } else { 'disk unknown' }
+      $diagnosticsLabel.Text = "Helper v$($health.helperVersion)  |  yt-dlp $($health.ytDlpVersion)  |  FFmpeg $([bool]$health.ffmpegVersion)  |  $free"
+      $diagnosticsLabel.ForeColor = [System.Drawing.Color]::LightGreen
+      $diagnosticsLabel.Tag = "$($health.downloadDir)"
+      return
+    }
+  } catch {}
+  $diagnosticsLabel.Text = 'Helper diagnostics unavailable'
+  $diagnosticsLabel.ForeColor = [System.Drawing.Color]::LightCoral
+}
+
 function Get-Jobs {
   try {
     $response = Invoke-RestMethod -Uri 'http://127.0.0.1:47829/jobs' -TimeoutSec 2
@@ -162,6 +177,8 @@ function Update-DownloadStatus {
     return
   }
 
+  Update-HelperDiagnostics
+
   $jobs = Get-Jobs
 
   if (-not $jobs -or $jobs.Count -eq 0) {
@@ -181,10 +198,10 @@ function Update-DownloadStatus {
     $percent = [Math]::Max(0, [Math]::Min(100, [int][Math]::Round([double]$job.percent)))
     $item = New-Object System.Windows.Forms.ListViewItem("$($job.label)")
     $item.Tag = "$($job.id)"
-    $stateText = if ($job.speed) { "$($job.speed)" } else { "$($job.status)" }
+    $stateText = if ($job.speed) { "$($job.speed)" } else { "$($job.stageLabel)" }
     $item.SubItems.Add("$percent%") | Out-Null
     $item.SubItems.Add($stateText) | Out-Null
-    $item.SubItems.Add("$($job.message)") | Out-Null
+    $item.SubItems.Add("$($job.stageLabel) - $($job.message)") | Out-Null
     $item.SubItems.Add("$($job.status)") | Out-Null
     $jobsListView.Items.Add($item) | Out-Null
 
@@ -320,6 +337,15 @@ $statusLabel.Text = 'Initializing...'
 $statusLabel.AutoSize = $true
 $statusLabel.Location = New-Object System.Drawing.Point(18, 48)
 $form.Controls.Add($statusLabel)
+
+$diagnosticsLabel = New-Object System.Windows.Forms.Label
+$diagnosticsLabel.Text = 'Checking tools...'
+$diagnosticsLabel.AutoEllipsis = $true
+$diagnosticsLabel.Width = 570
+$diagnosticsLabel.Height = 18
+$diagnosticsLabel.ForeColor = [System.Drawing.Color]::Silver
+$diagnosticsLabel.Location = New-Object System.Drawing.Point(18, 66)
+$form.Controls.Add($diagnosticsLabel)
 
 $stopSelectedButton = New-Object System.Windows.Forms.Button
 $stopSelectedButton.Text = 'Stop DL'

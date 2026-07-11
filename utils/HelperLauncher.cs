@@ -21,6 +21,8 @@ namespace RedMediaHelperLauncher
         public double percent { get; set; }
         public string speed { get; set; }
         public string message { get; set; }
+        public string stageLabel { get; set; }
+        public double stagePercent { get; set; }
     }
 
     internal sealed class JobsResponse
@@ -32,11 +34,18 @@ namespace RedMediaHelperLauncher
     internal sealed class HealthResponse
     {
         public bool ok { get; set; }
+        public string helperVersion { get; set; }
+        public string ytDlpVersion { get; set; }
+        public string ffmpegVersion { get; set; }
+        public string nodeVersion { get; set; }
+        public string downloadDir { get; set; }
+        public double freeBytes { get; set; }
     }
 
     internal sealed class HelperForm : Form
     {
         private const string AppName = "Red Media Helper";
+        private const string AppVersion = "1.4.0";
         private const string HealthUrl = "http://127.0.0.1:47829/health";
         private const string JobsUrl = "http://127.0.0.1:47829/jobs";
         private const string NodeVersion = "v22.16.0";
@@ -57,6 +66,7 @@ namespace RedMediaHelperLauncher
         private Icon helperIcon;
         private bool isClosing;
         private Label statusLabel;
+        private Label diagnosticsLabel;
         private Button stopSelectedButton;
         private Button downloadsButton;
         private ListView jobsListView;
@@ -173,6 +183,17 @@ namespace RedMediaHelperLauncher
                 Location = new Point(18, 48)
             };
             Controls.Add(statusLabel);
+
+            diagnosticsLabel = new Label
+            {
+                Text = "Checking tools...",
+                AutoEllipsis = true,
+                Width = 570,
+                Height = 18,
+                ForeColor = Color.Silver,
+                Location = new Point(18, 66)
+            };
+            Controls.Add(diagnosticsLabel);
 
             stopSelectedButton = new Button
             {
@@ -456,6 +477,7 @@ namespace RedMediaHelperLauncher
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
+            startInfo.EnvironmentVariables["RED_MEDIA_HELPER_VERSION"] = AppVersion;
 
             Process process = Process.Start(startInfo);
 
@@ -710,10 +732,31 @@ namespace RedMediaHelperLauncher
 
         private void UpdateDownloadStatus()
         {
-            if (!TestHelperAlive())
+            HealthResponse health;
+            try
             {
+                health = GetJson<HealthResponse>(HealthUrl);
+            }
+            catch
+            {
+                health = null;
+            }
+
+            if (health == null || !health.ok)
+            {
+                diagnosticsLabel.Text = "Helper diagnostics unavailable";
+                diagnosticsLabel.ForeColor = Color.LightCoral;
                 return;
             }
+
+            diagnosticsLabel.Text = string.Format(
+                "Helper v{0}  |  yt-dlp {1}  |  FFmpeg {2}  |  {3:N1} GB free",
+                health.helperVersion ?? "?",
+                health.ytDlpVersion ?? "missing",
+                string.IsNullOrEmpty(health.ffmpegVersion) ? "missing" : "ready",
+                health.freeBytes / 1024d / 1024d / 1024d
+            );
+            diagnosticsLabel.ForeColor = Color.LightGreen;
 
             Job[] jobs = GetJobs();
 
@@ -738,8 +781,8 @@ namespace RedMediaHelperLauncher
 
                 item.Tag = job.id;
                 item.SubItems.Add(percent + "%");
-                item.SubItems.Add(!string.IsNullOrEmpty(job.speed) ? job.speed : status);
-                item.SubItems.Add(job.message ?? "");
+                item.SubItems.Add(!string.IsNullOrEmpty(job.speed) ? job.speed : (job.stageLabel ?? status));
+                item.SubItems.Add((job.stageLabel ?? status) + " - " + (job.message ?? ""));
                 item.SubItems.Add(status);
                 jobsListView.Items.Add(item);
 

@@ -1,6 +1,6 @@
 {
-  "name": "Red Media",
-  "version": "1.3.0",
+  "name": "Red Media Helper",
+  "version": "1.4.0",
   "description": "Control HTML5 media playback, boost volume, and send downloads to Red Media Helper.",
   "action": {
     "default_popup": "popup.html",

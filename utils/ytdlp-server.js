@@ -42,6 +42,7 @@ const FFMPEG_LANGUAGE_CODES = {
   'zh-hans': 'chi',
   'zh-hant': 'chi',
 };
+const HELPER_VERSION = process.env.RED_MEDIA_HELPER_VERSION || '1.4.0';
 
 let cachedYtDlp = null;
 let latestJobId = null;
@@ -73,6 +74,44 @@ const getChildProcessEnv = () => {
   env[pathKey] = pathParts.filter(Boolean).join(path.delimiter);
 
   return env;
+};
+
+const getCommandVersion = (command, args = ['--version']) => {
+  if (!command || (path.isAbsolute(command) && !fs.existsSync(command))) {
+    return null;
+  }
+
+  const result = spawnSync(command, args, {
+    encoding: 'utf8',
+    env: getChildProcessEnv(),
+    windowsHide: true,
+  });
+
+  return result.status === 0
+    ? String(result.stdout || result.stderr || '').trim().split(/\r?\n/)[0]
+    : null;
+};
+
+const getDiagnostics = () => {
+  const disk = typeof fs.statfsSync === 'function' ? fs.statfsSync(DOWNLOAD_DIR) : null;
+  let ytDlpVersion = null;
+
+  try {
+    const candidate = findYtDlp();
+    ytDlpVersion = getCommandVersion(candidate.command, [...candidate.args, '--version']);
+  } catch (error) {
+    ytDlpVersion = null;
+  }
+
+  return {
+    helperVersion: HELPER_VERSION,
+    ytDlpVersion,
+    ffmpegVersion: getCommandVersion(LOCAL_FFMPEG, ['-version']),
+    aria2Version: getCommandVersion(LOCAL_ARIA2C),
+    nodeVersion: getCommandVersion(fs.existsSync(LOCAL_NODE) ? LOCAL_NODE : 'node', ['--version']),
+    downloadDir: DOWNLOAD_DIR,
+    freeBytes: disk ? Number(disk.bavail) * Number(disk.bsize) : 0,
+  };
 };
 
 const sendJson = (response, statusCode, payload) => {
@@ -177,17 +216,23 @@ const runYtDlp = (args, timeoutMs = 0) =>
     });
   });
 
-const createJob = (label) => {
+const createJob = (label, partsTotal = 1) => {
   const id = String(nextJobId++);
   const job = {
     id,
     label,
     status: 'starting',
     percent: 0,
+    stage: 'preparing',
+    stageLabel: 'Preparing',
+    stagePercent: 0,
+    part: 0,
+    partsTotal: Math.max(1, partsTotal),
     speed: '',
     message: 'Starting download...',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    seenDestinations: new Set(),
   };
 
   jobs.set(id, job);
@@ -238,7 +283,7 @@ const isYouTubeUrl = (value = '') => {
 const getExtractorArgs = (pageUrl = '') =>
   isYouTubeUrl(pageUrl) ? YOUTUBE_EXTRACTOR_ARGS : [];
 
-const parseYtDlpLine = (line) => {
+const parseYtDlpLine = (line, job = {}) => {
   const normalizedLine = line.replace(/\s+/g, ' ').trim();
 
   if (/^-{8,}$/.test(normalizedLine)) {
@@ -261,7 +306,10 @@ const parseYtDlpLine = (line) => {
   ) {
     return {
       status: 'processing',
-      percent: 100,
+      percent: 95,
+      stage: 'processing',
+      stageLabel: 'Merging and finalizing',
+      stagePercent: 0,
       speed: '',
       message: 'Traitement du fichier final...',
     };
@@ -276,8 +324,15 @@ const parseYtDlpLine = (line) => {
       };
     }
 
+    if (job.seenDestinations instanceof Set && !job.seenDestinations.has(destinationName)) {
+      job.seenDestinations.add(destinationName);
+      job.part = Math.min(job.seenDestinations.size, job.partsTotal || 1);
+    }
+
     return {
       label: destinationName,
+      stage: 'downloading',
+      stageLabel: `Downloading file ${Math.max(1, job.part || 1)}/${job.partsTotal || 1}`,
       message: normalizedLine,
     };
   }
@@ -288,18 +343,30 @@ const parseYtDlpLine = (line) => {
     const percent =
       total > 0 ? Math.min(99, Math.max(0, (current / total) * 100)) : 0;
 
+    const stagePercent = percent;
+    const part = Math.max(1, job.part || 1);
+    const partsTotal = Math.max(1, job.partsTotal || 1);
     return {
       status: 'downloading',
-      percent,
+      percent: Math.min(94, ((part - 1 + stagePercent / 100) / partsTotal) * 90),
+      stage: 'downloading',
+      stageLabel: `Downloading file ${part}/${partsTotal}`,
+      stagePercent,
       speed: speedMatch ? speedMatch[1] : '',
       message: normalizedLine,
     };
   }
 
   if (percentMatch) {
+    const stagePercent = Number(percentMatch[1]);
+    const part = Math.max(1, job.part || 1);
+    const partsTotal = Math.max(1, job.partsTotal || 1);
     return {
       status: 'downloading',
-      percent: Number(percentMatch[1]),
+      percent: Math.min(94, ((part - 1 + stagePercent / 100) / partsTotal) * 90),
+      stage: 'downloading',
+      stageLabel: `Downloading file ${part}/${partsTotal}`,
+      stagePercent,
       speed: speedMatch ? speedMatch[1] : '',
       message: normalizedLine,
     };
@@ -357,7 +424,7 @@ const startYtDlp = (args, job, fallbackArgs = null, retryCount = 0) => {
         return;
       }
 
-      const patch = parseYtDlpLine(trimmed);
+      const patch = parseYtDlpLine(trimmed, job);
 
       if (patch) {
         updateJob(job, patch);
@@ -367,6 +434,8 @@ const startYtDlp = (args, job, fallbackArgs = null, retryCount = 0) => {
 
   updateJob(job, {
     status: 'running',
+    stage: 'preparing',
+    stageLabel: 'Preparing download',
     message: 'Download running...',
   });
 
@@ -419,6 +488,9 @@ const startYtDlp = (args, job, fallbackArgs = null, retryCount = 0) => {
         ? {
             status: 'complete',
             percent: 100,
+            stage: 'complete',
+            stageLabel: 'Complete',
+            stagePercent: 100,
             speed: '',
             message: 'Download complete.',
           }
@@ -434,7 +506,7 @@ const startYtDlp = (args, job, fallbackArgs = null, retryCount = 0) => {
 };
 
 const getPublicJob = (job) => {
-  const { process, ...publicJob } = job;
+  const { process, seenDestinations, ...publicJob } = job;
 
   return publicJob;
 };
@@ -945,6 +1017,14 @@ const getDownloadSpeedArgs = (formatId, useExternalDownloader = true) => {
   return args;
 };
 
+const selectRequestedFormat = (formatId, videoSelector, selectedAudioIds, hasAudioSelection) => {
+  if (!videoSelector || !hasAudioSelection) {
+    return formatId;
+  }
+  const audioSelector = selectedAudioIds.length ? selectedAudioIds.join('+') : 'bestaudio';
+  return `${videoSelector}+${audioSelector}/${videoSelector}+bestaudio/best`;
+};
+
 const getFormatExt = (formats, height) => {
   const mp4 = formats.find(
     (format) =>
@@ -984,7 +1064,7 @@ const buildOptions = (info, pageUrl) => {
     : 'ba';
   const options = [];
 
-  heights.slice(0, 8).forEach((height) => {
+  heights.slice(0, 5).forEach((height) => {
     const ext = getFormatExt(videoFormats, height);
     const outputExt = shouldMergeAllAudio || audioIds.length > 1 ? 'mkv' : 'mp4';
     const videoSelector =
@@ -1006,6 +1086,7 @@ const buildOptions = (info, pageUrl) => {
       id: `yt-merged-${height}`,
       source: 'companion',
       formatId,
+      videoSelector,
       pageUrl,
       label: `${height}p best`,
       detail: formatDetail([
@@ -1065,6 +1146,21 @@ const buildOptions = (info, pageUrl) => {
       audioTracks,
       includesAllAudioTracks: audioIds.length > 1,
       mergeOutputFormat: audioIds.length > 1 ? 'mkv' : 'mp4',
+    });
+  }
+
+  if (audioTracks.length) {
+    options.push({
+      id: 'audio-mp3',
+      source: 'companion',
+      formatId: 'bestaudio/best',
+      pageUrl,
+      label: 'Audio only',
+      detail: 'Best audio converted to MP3',
+      audioOnly: true,
+      audioTracks,
+      includesAllAudioTracks: false,
+      mergeOutputFormat: 'mp3',
     });
   }
 
@@ -1202,13 +1298,20 @@ const handleDownload = async (request, response) => {
   try {
     const body = JSON.parse((await getRequestBody(request)) || '{}');
     const pageUrl = body.url;
-    const formatId = body.formatId;
+    let formatId = body.formatId;
     const audioTracks = Array.isArray(body.audioTracks) ? body.audioTracks : [];
+    const hasAudioSelection = Array.isArray(body.selectedAudioIds);
+    const selectedAudioIds = hasAudioSelection
+      ? body.selectedAudioIds.filter((value) => typeof value === 'string' && value)
+      : [];
+    const videoSelector = typeof body.videoSelector === 'string' ? body.videoSelector : '';
+    const audioOnly = body.audioOnly === true;
+    const includeSubtitles = body.includeSubtitles === true;
     const referer = typeof body.referer === 'string' ? body.referer : '';
     const requestedFilename = sanitizeFilename(body.filename || '');
     const label = sanitizeText(requestedFilename || body.label || 'Media download');
     const mergeOutputFormat =
-      body.mergeOutputFormat === 'mkv' || body.mergeOutputFormat === 'mp4'
+      body.mergeOutputFormat === 'mkv' || body.mergeOutputFormat === 'mp4' || body.mergeOutputFormat === 'mp3'
         ? body.mergeOutputFormat
         : 'mp4';
 
@@ -1217,7 +1320,9 @@ const handleDownload = async (request, response) => {
       return;
     }
 
-    const job = createJob(label);
+    if (!audioOnly) formatId = selectRequestedFormat(formatId, videoSelector, selectedAudioIds, hasAudioSelection);
+
+    const job = createJob(label, audioOnly ? 1 : Math.max(2, selectedAudioIds.length + 1));
     const shouldSelectFormat = formatId && formatId !== 'direct';
     const createDownloadArgs = (useExternalDownloader) => [
       '--newline',
@@ -1232,7 +1337,11 @@ const handleDownload = async (request, response) => {
         ? ['--ffmpeg-location', LOCAL_FFMPEG_DIR]
         : []),
       ...(shouldSelectFormat ? ['-f', formatId] : []),
-      ...(shouldSelectFormat ? ['--merge-output-format', mergeOutputFormat] : []),
+      ...(audioOnly ? ['--extract-audio', '--audio-format', 'mp3', '--audio-quality', '0'] : []),
+      ...(shouldSelectFormat && !audioOnly ? ['--merge-output-format', mergeOutputFormat] : []),
+      ...(includeSubtitles && !audioOnly
+        ? ['--write-subs', '--write-auto-subs', '--sub-langs', 'all', '--embed-subs']
+        : []),
       ...(shouldSelectFormat && mergeOutputFormat === 'mkv'
         ? getAudioMetadataArgs(audioTracks)
         : []),
@@ -1361,6 +1470,7 @@ const server = http.createServer((request, response) => {
     sendJson(response, 200, {
       ok: true,
       latestJobId,
+      ...getDiagnostics(),
     });
     return;
   }
@@ -1411,9 +1521,18 @@ const server = http.createServer((request, response) => {
   sendJson(response, 404, { ok: false, error: 'Not found.' });
 });
 
-cleanupStaleAria2ControlFiles();
+if (require.main === module) {
+  cleanupStaleAria2ControlFiles();
+  server.listen(PORT, HOST, () => {
+    console.log(`yt-dlp helper listening on http://${HOST}:${PORT}`);
+    console.log(`Downloads will be saved to ${DOWNLOAD_DIR}`);
+  });
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`yt-dlp helper listening on http://${HOST}:${PORT}`);
-  console.log(`Downloads will be saved to ${DOWNLOAD_DIR}`);
-});
+module.exports = {
+  buildExtractedMediaOptions,
+  buildOptions,
+  getAudioTracks,
+  parseYtDlpLine,
+  selectRequestedFormat,
+};

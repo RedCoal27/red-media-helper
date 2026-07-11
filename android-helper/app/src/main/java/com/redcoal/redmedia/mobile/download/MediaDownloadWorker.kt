@@ -91,6 +91,10 @@ class MediaDownloadWorker(
                     val now = System.currentTimeMillis()
                     val detectedPath = extractDestination(line)
                     if (detectedPath != null) finalPath = detectedPath
+                    val isProcessing = line.contains("Merging formats", true) ||
+                        line.contains("Post-process", true) ||
+                        line.contains("Remuxing", true) ||
+                        line.contains("ExtractAudio", true)
 
                     if (now - lastUpdateAt >= 450 || progress >= 100f || detectedPath != null) {
                         lastUpdateAt = now
@@ -98,8 +102,8 @@ class MediaDownloadWorker(
                         runBlocking(Dispatchers.IO) {
                             dao.updateProgress(
                                 id = id,
-                                status = DownloadStatus.RUNNING,
-                                progress = progress.coerceIn(0f, 100f),
+                                status = if (isProcessing) DownloadStatus.PROCESSING else DownloadStatus.RUNNING,
+                                progress = if (isProcessing) 95f else progress.coerceIn(0f, 94f),
                                 etaSeconds = etaSeconds,
                                 message = message,
                                 filePath = finalPath,
@@ -117,6 +121,15 @@ class MediaDownloadWorker(
                 ?: outputDirectory.walkTopDown()
                     .filter(File::isFile)
                     .maxByOrNull(File::lastModified)
+            dao.updateProgress(
+                id = id,
+                status = DownloadStatus.PROCESSING,
+                progress = 98f,
+                etaSeconds = 0,
+                message = "Saving to Downloads",
+                filePath = generatedFile?.absolutePath ?: finalPath,
+                updatedAt = System.currentTimeMillis(),
+            )
             val publishedPath = generatedFile?.let(::publishToDownloads) ?: finalPath
 
             dao.updateProgress(
@@ -295,7 +308,8 @@ class MediaDownloadWorker(
         private fun humanizeLine(line: String): String {
             val compact = line.trim().replace(Regex("\\s+"), " ")
             return when {
-                "Merging formats" in compact -> "Processing media"
+                "Merging formats" in compact -> "Merging video and audio tracks"
+                "Remuxing" in compact -> "Finalizing media container"
                 "ExtractAudio" in compact -> "Converting audio"
                 "Destination:" in compact -> "Downloading"
                 compact.isBlank() -> "Downloading"
