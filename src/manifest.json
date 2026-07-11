@@ -1,7 +1,7 @@
 {
-  "name": "Video Playback Extension",
-  "version": "1.0.6",
-  "description": "A full-featured video and audio player extension. Control playback speed, skipping, rewinding and more.",
+  "name": "Red Media",
+  "version": "1.1.1",
+  "description": "Control HTML5 media playback, boost volume, and send downloads to Red Media Helper.",
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon34.png"

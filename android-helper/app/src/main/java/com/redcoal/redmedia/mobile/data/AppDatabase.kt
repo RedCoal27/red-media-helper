@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.data
+package com.redcoal.redmedia.mobile.data
 
 import android.content.Context
 import androidx.room.Database
@@ -13,7 +13,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun create(context: Context): AppDatabase = Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
-            "video-playback-mobile.db",
+            "red-media-mobile.db",
         ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 }

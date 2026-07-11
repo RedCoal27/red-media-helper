@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.download
+package com.redcoal.redmedia.mobile.download
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -20,9 +20,9 @@ import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
-import com.redcoal.videoplayback.mobile.R
-import com.redcoal.videoplayback.mobile.VideoPlaybackApp
-import com.redcoal.videoplayback.mobile.data.DownloadStatus
+import com.redcoal.redmedia.mobile.R
+import com.redcoal.redmedia.mobile.RedMediaApp
+import com.redcoal.redmedia.mobile.data.DownloadStatus
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ class MediaDownloadWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
-    private val dao = (appContext as VideoPlaybackApp).database.downloadDao()
+    private val dao = (appContext as RedMediaApp).database.downloadDao()
     private val notificationManager = NotificationManagerCompat.from(appContext)
     private var lastUpdateAt = 0L
 
@@ -52,7 +52,7 @@ class MediaDownloadWorker(
             val outputDirectory = File(
                 applicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                     ?: applicationContext.filesDir,
-                "Video Playback/$id",
+                "Red Media/$id",
             ).apply { mkdirs() }
 
             val request = YoutubeDLRequest(download.sourceUrl)
@@ -203,7 +203,7 @@ class MediaDownloadWorker(
             NotificationCompat.Builder(applicationContext, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
                 .setContentTitle(title)
-                .setContentText("Saved to Download/Video Playback")
+                .setContentText("Saved to Download/Red Media")
                 .setAutoCancel(true)
                 .build()
         )
@@ -248,7 +248,7 @@ class MediaDownloadWorker(
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, source.name)
                 put(MediaStore.Downloads.MIME_TYPE, mimeType)
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/Video Playback")
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/Red Media")
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
             val resolver = applicationContext.contentResolver
@@ -268,7 +268,7 @@ class MediaDownloadWorker(
 
         val destinationDirectory = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "Video Playback",
+            "Red Media",
         ).apply { mkdirs() }
         val destination = File(destinationDirectory, source.name)
         source.copyTo(destination, overwrite = true)

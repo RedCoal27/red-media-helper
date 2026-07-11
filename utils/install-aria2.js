@@ -21,7 +21,7 @@ const requestText = (url, redirectCount = 0) =>
         url,
         {
           headers: {
-            'User-Agent': 'video-playback-helper',
+            'User-Agent': 'red-media-helper',
             Accept: 'application/vnd.github+json, */*',
           },
         },
@@ -67,7 +67,7 @@ const download = (url, target, redirectCount = 0) =>
         url,
         {
           headers: {
-            'User-Agent': 'video-playback-helper',
+            'User-Agent': 'red-media-helper',
             Accept: '*/*',
           },
         },

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VideoPlaybackMobile"
+rootProject.name = "RedMediaMobile"
 include(":app")

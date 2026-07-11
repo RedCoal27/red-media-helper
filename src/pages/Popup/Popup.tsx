@@ -157,7 +157,7 @@ const getHelperError = (error: unknown) => {
     return error.message;
   }
 
-  return 'Compagnon indisponible. Lance Video Playback Helper.vbs.';
+  return 'Compagnon indisponible. Lance Red Media Helper.exe.';
 };
 
 const createTimeoutSignal = (timeoutMs: number) => {
@@ -187,7 +187,7 @@ const requestCompanionOptions = async (
 
   if (!response.ok || !data?.ok) {
     throw new Error(
-      data?.error || 'Compagnon indisponible. Lance Video Playback Helper.vbs.'
+      data?.error || 'Compagnon indisponible. Lance Red Media Helper.exe.'
     );
   }
 
@@ -908,7 +908,7 @@ const Popup: React.FC = () => {
             </div>
           </div>
           <div className="u-flex u-flex-direction-column">
-            <h1 className="App-title">Video Playback</h1>
+            <h1 className="App-title">Red Media</h1>
           </div>
         </div>
         {isEnabled ? (

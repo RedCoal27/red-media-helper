@@ -11,7 +11,7 @@ using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-namespace VideoPlaybackHelperLauncher
+namespace RedMediaHelperLauncher
 {
     internal sealed class Job
     {
@@ -36,7 +36,7 @@ namespace VideoPlaybackHelperLauncher
 
     internal sealed class HelperForm : Form
     {
-        private const string AppName = "Video Playback Helper";
+        private const string AppName = "Red Media Helper";
         private const string HealthUrl = "http://127.0.0.1:47829/health";
         private const string JobsUrl = "http://127.0.0.1:47829/jobs";
         private const string NodeVersion = "v22.16.0";
@@ -66,12 +66,12 @@ namespace VideoPlaybackHelperLauncher
 
         public HelperForm()
         {
-            singleInstanceMutex = new Mutex(true, "Global\\VideoPlaybackHelperSingleInstance", out createdNewInstance);
+            singleInstanceMutex = new Mutex(true, "Global\\RedMediaHelperSingleInstance", out createdNewInstance);
 
             if (!createdNewInstance)
             {
                 MessageBox.Show(
-                    "Video Playback Helper is already running.",
+                    "Red Media Helper is already running.",
                     AppName,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information

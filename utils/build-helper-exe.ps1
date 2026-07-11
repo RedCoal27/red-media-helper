@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $PSScriptRoot 'HelperLauncher.cs'
 $icon = Join-Path $PSScriptRoot 'helper-icon.ico'
 $createIconScript = Join-Path $PSScriptRoot 'create-helper-icon.js'
-$output = Join-Path $root 'Video Playback Helper.exe'
+$output = Join-Path $root 'Red Media Helper.exe'
 $candidates = @(
   (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'),
   (Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe')

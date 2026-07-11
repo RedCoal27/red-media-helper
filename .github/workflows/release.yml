@@ -31,11 +31,34 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        shell: pwsh
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Package release assets
         run: npm run package:release
+
+      - name: Build Red Media Mobile
+        working-directory: android-helper
+        shell: pwsh
+        run: .\gradlew.bat --no-daemon assembleDebug
+
+      - name: Add Android APK to release assets
+        shell: pwsh
+        run: Copy-Item android-helper/app/build/outputs/apk/debug/app-debug.apk dist/release/Red-Media-Mobile.apk
 
       - name: Resolve release tag
         id: release_tag
@@ -58,7 +81,7 @@ jobs:
 
           if ($LASTEXITCODE -ne 0) {
             gh release create $env:RELEASE_TAG @assets `
-              --title "Video Playback $env:RELEASE_TAG" `
+              --title "Red Media Helper $env:RELEASE_TAG" `
               --generate-notes
           } else {
             gh release upload $env:RELEASE_TAG @assets --clobber

@@ -1,9 +1,9 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root 'dist'
 $releaseDir = Join-Path $dist 'release'
-$extensionZip = Join-Path $releaseDir 'video-playback-extension-unpacked.zip'
+$extensionZip = Join-Path $releaseDir 'red-media-extension-unpacked.zip'
 
 function Reset-Directory {
   param([string]$Path)
@@ -41,16 +41,10 @@ try {
 
   Compress-Archive -Path (Join-Path $root 'build\*') -DestinationPath $extensionZip -Force
 
-  @(
-    'Video Playback Helper.exe',
-    'Video Playback Helper.cmd',
-    'Video Playback Helper.vbs'
-  ) | ForEach-Object {
-    Copy-RequiredItem (Join-Path $root $_) $releaseDir
-  }
+  Copy-RequiredItem (Join-Path $root 'Red Media Helper.exe') $releaseDir
 
   Write-Host "Created $extensionZip"
-  Write-Host "Created $(Join-Path $releaseDir 'Video Playback Helper.exe')"
+  Write-Host "Created $(Join-Path $releaseDir 'Red Media Helper.exe')"
 } finally {
   Pop-Location
 }

@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.ui
+package com.redcoal.redmedia.mobile.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -21,7 +21,7 @@ private val AppColors = darkColorScheme(
 )
 
 @Composable
-fun VideoPlaybackTheme(content: @Composable () -> Unit) {
+fun RedMediaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = AppColors,
         typography = MaterialTheme.typography,

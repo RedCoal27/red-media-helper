@@ -12,12 +12,12 @@ $serverProcess = $null
 $isClosing = $false
 $jobNotifications = @{}
 $createdNewInstance = $false
-$singleInstanceMutex = New-Object System.Threading.Mutex($true, 'Global\VideoPlaybackHelperSingleInstance', [ref]$createdNewInstance)
+$singleInstanceMutex = New-Object System.Threading.Mutex($true, 'Global\RedMediaHelperSingleInstance', [ref]$createdNewInstance)
 
 if (-not $createdNewInstance) {
   [System.Windows.Forms.MessageBox]::Show(
-    "Video Playback Helper is already running.",
-    "Video Playback Helper",
+    "Red Media Helper is already running.",
+    "Red Media Helper",
     [System.Windows.Forms.MessageBoxButtons]::OK,
     [System.Windows.Forms.MessageBoxIcon]::Information
   ) | Out-Null
@@ -36,7 +36,7 @@ function Set-Status {
 
   $statusLabel.Text = $Text
   $statusLabel.ForeColor = $Color
-  $notifyIcon.Text = "Video Playback Helper - $Text"
+  $notifyIcon.Text = "Red Media Helper - $Text"
 }
 
 function Test-Node {
@@ -61,7 +61,7 @@ function Ensure-Tools {
   if (-not (Test-Node)) {
     [System.Windows.Forms.MessageBox]::Show(
       "Node.js was not found. Install Node.js, then restart this helper.",
-      "Video Playback Helper",
+      "Red Media Helper",
       [System.Windows.Forms.MessageBoxButtons]::OK,
       [System.Windows.Forms.MessageBoxIcon]::Error
     ) | Out-Null
@@ -219,7 +219,7 @@ function Update-DownloadStatus {
         $script:jobNotifications[$notificationKey] = $true
         $notifyIcon.ShowBalloonTip(
           1800,
-          'Video Playback Helper',
+          'Red Media Helper',
           "$($job.label) completed.",
           [System.Windows.Forms.ToolTipIcon]::Info
         )
@@ -231,7 +231,7 @@ function Update-DownloadStatus {
         $script:jobNotifications[$notificationKey] = $true
         $notifyIcon.ShowBalloonTip(
           2200,
-          'Video Playback Helper',
+          'Red Media Helper',
           "$($job.label) failed.",
           [System.Windows.Forms.ToolTipIcon]::Error
         )
@@ -295,7 +295,7 @@ function Place-BottomRight {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Video Playback Helper'
+$form.Text = 'Red Media Helper'
 $form.Width = 620
 $form.Height = 430
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
@@ -309,7 +309,7 @@ if ($helperIcon) {
 }
 
 $titleLabel = New-Object System.Windows.Forms.Label
-$titleLabel.Text = 'Video Playback Helper'
+$titleLabel.Text = 'Red Media Helper'
 $titleLabel.Font = New-Object System.Drawing.Font('Segoe UI', 11, [System.Drawing.FontStyle]::Bold)
 $titleLabel.AutoSize = $true
 $titleLabel.Location = New-Object System.Drawing.Point(16, 14)
@@ -394,7 +394,7 @@ $exitItem.Add_Click({
 $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
 $notifyIcon.Icon = if ($helperIcon) { $helperIcon } else { [System.Drawing.SystemIcons]::Application }
 $notifyIcon.Visible = $true
-$notifyIcon.Text = 'Video Playback Helper'
+$notifyIcon.Text = 'Red Media Helper'
 $notifyIcon.ContextMenuStrip = $contextMenu
 $notifyIcon.Add_DoubleClick({
   $form.Show()
@@ -417,7 +417,7 @@ $form.Add_Resize({
     $form.Hide()
     $notifyIcon.ShowBalloonTip(
       1200,
-      'Video Playback Helper',
+      'Red Media Helper',
       'The helper is still running in the background.',
       [System.Windows.Forms.ToolTipIcon]::Info
     )

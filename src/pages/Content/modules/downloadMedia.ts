@@ -36,7 +36,7 @@ const sanitizeFilename = (input: string): string => {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return sanitized || 'video-playback-download';
+  return sanitized || 'red-media-download';
 };
 
 const getExtensionFromUrl = (value: string): string | null => {

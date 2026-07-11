@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.ui
+package com.redcoal.redmedia.mobile.ui
 
 import android.annotation.SuppressLint
 import android.webkit.CookieManager
@@ -76,19 +76,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.redcoal.videoplayback.mobile.AnalysisState
-import com.redcoal.videoplayback.mobile.MainViewModel
-import com.redcoal.videoplayback.mobile.R
-import com.redcoal.videoplayback.mobile.data.DownloadEntity
-import com.redcoal.videoplayback.mobile.data.DownloadStatus
-import com.redcoal.videoplayback.mobile.download.FormatChoice
-import com.redcoal.videoplayback.mobile.download.MediaAnalysis
+import com.redcoal.redmedia.mobile.AnalysisState
+import com.redcoal.redmedia.mobile.MainViewModel
+import com.redcoal.redmedia.mobile.R
+import com.redcoal.redmedia.mobile.data.DownloadEntity
+import com.redcoal.redmedia.mobile.data.DownloadStatus
+import com.redcoal.redmedia.mobile.download.FormatChoice
+import com.redcoal.redmedia.mobile.download.MediaAnalysis
 import org.json.JSONArray
 import org.json.JSONTokener
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VideoPlaybackRoot(
+fun RedMediaRoot(
     viewModel: MainViewModel,
     onOpenDownloads: () -> Unit,
 ) {
@@ -114,7 +114,7 @@ fun VideoPlaybackRoot(
                         )
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text("Video Playback", fontWeight = FontWeight.SemiBold)
+                            Text("Red Media", fontWeight = FontWeight.SemiBold)
                             Text(
                                 when (selectedTab) {
                                     0 -> "Media downloader"
@@ -204,7 +204,7 @@ private fun NewDownloadScreen(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "You can also share a link from your browser directly to Video Playback.",
+                "You can also share a link from your browser directly to Red Media.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )

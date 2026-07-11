@@ -1,2 +1,2 @@
 -keep class com.yausername.youtubedl_android.** { *; }
--keep class com.redcoal.videoplayback.mobile.data.** { *; }
+-keep class com.redcoal.redmedia.mobile.data.** { *; }

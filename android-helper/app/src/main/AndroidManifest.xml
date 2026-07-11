@@ -11,13 +11,13 @@
         android:maxSdkVersion="28" />
 
     <application
-        android:name=".VideoPlaybackApp"
+        android:name=".RedMediaApp"
         android:allowBackup="true"
         android:extractNativeLibs="true"
         android:icon="@drawable/app_logo"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VideoPlayback">
+        android:theme="@style/Theme.RedMedia">
 
         <activity
             android:name=".MainActivity"

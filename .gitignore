@@ -10,8 +10,15 @@
 # production
 /build
 /dist
-/Video Playback Helper.exe
+/Red Media Helper.exe
 /utils/helper-icon.ico
+
+# Android local/build output
+/android-helper/.gradle
+/android-helper/local.properties
+/android-helper/**/build
+/android-helper/.cxx
+/android-helper/.externalNativeBuild
 
 # misc
 .DS_Store

@@ -1,13 +1,13 @@
-package com.redcoal.videoplayback.mobile
+package com.redcoal.redmedia.mobile
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.redcoal.videoplayback.mobile.data.DownloadEntity
-import com.redcoal.videoplayback.mobile.download.FormatChoice
-import com.redcoal.videoplayback.mobile.download.BrowserRequestContext
-import com.redcoal.videoplayback.mobile.download.MediaAnalysis
-import com.redcoal.videoplayback.mobile.download.MediaAnalyzer
+import com.redcoal.redmedia.mobile.data.DownloadEntity
+import com.redcoal.redmedia.mobile.download.FormatChoice
+import com.redcoal.redmedia.mobile.download.BrowserRequestContext
+import com.redcoal.redmedia.mobile.download.MediaAnalysis
+import com.redcoal.redmedia.mobile.download.MediaAnalyzer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +29,7 @@ data class BrowserMediaCandidate(
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application as VideoPlaybackApp
+    private val app = application as RedMediaApp
     private val analyzer = MediaAnalyzer(application)
     private val repository = app.downloads
 

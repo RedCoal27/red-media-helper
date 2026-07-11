@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.download
+package com.redcoal.redmedia.mobile.download
 
 import android.content.Context
 import androidx.core.net.toUri
@@ -6,9 +6,9 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.redcoal.videoplayback.mobile.data.DownloadDao
-import com.redcoal.videoplayback.mobile.data.DownloadEntity
-import com.redcoal.videoplayback.mobile.data.DownloadStatus
+import com.redcoal.redmedia.mobile.data.DownloadDao
+import com.redcoal.redmedia.mobile.data.DownloadEntity
+import com.redcoal.redmedia.mobile.data.DownloadStatus
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.io.File

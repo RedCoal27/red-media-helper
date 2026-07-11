@@ -1,6 +1,6 @@
-# Video Playback Mobile
+# Red Media Mobile
 
-Android download companion for Video Playback. It accepts a pasted page URL or a
+Android download companion for Red Media. It accepts a pasted page URL or a
 link shared from a browser, inspects the available media with yt-dlp, and manages
 background downloads in a persistent queue.
 
@@ -13,7 +13,7 @@ background downloads in a persistent queue.
 - Download audio-only media as MP3.
 - Keep downloads running in the background with Android notifications.
 - Pause, resume, retry, and delete downloads.
-- Save completed files to `Download/Video Playback`.
+- Save completed files to `Download/Red Media`.
 
 ## Build
 
@@ -30,7 +30,7 @@ The debug APK is generated at:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The GitHub workflow `Android Helper` also builds and uploads a debug APK artifact.
+The GitHub workflow `Red Media Mobile` also builds and uploads a debug APK artifact.
 
 ## Technology
 

@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile.data
+package com.redcoal.redmedia.mobile.data
 
 import androidx.room.Dao
 import androidx.room.Insert

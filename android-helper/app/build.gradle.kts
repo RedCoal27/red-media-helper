@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.redcoal.videoplayback.mobile"
+    namespace = "com.redcoal.redmedia.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.redcoal.videoplayback.mobile"
+        applicationId = "com.redcoal.redmedia.mobile"
         minSdk = 24
         targetSdk = 35
         versionCode = 3
@@ -67,9 +67,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1")
-    implementation("androidx.navigation:navigation-compose:2.9.1")
     implementation("androidx.work:work-runtime-ktx:2.10.2")
 
     implementation("androidx.room:room-runtime:2.7.2")
@@ -79,7 +77,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
-    implementation("io.github.junkfood02.youtubedl-android:aria2c:0.18.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -1,4 +1,4 @@
-package com.redcoal.videoplayback.mobile
+package com.redcoal.redmedia.mobile
 
 import android.Manifest
 import android.app.DownloadManager
@@ -13,8 +13,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import com.redcoal.videoplayback.mobile.ui.VideoPlaybackRoot
-import com.redcoal.videoplayback.mobile.ui.VideoPlaybackTheme
+import com.redcoal.redmedia.mobile.ui.RedMediaRoot
+import com.redcoal.redmedia.mobile.ui.RedMediaTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -28,8 +28,8 @@ class MainActivity : ComponentActivity() {
         handleIncomingIntent(intent)
         requestNotificationPermission()
         setContent {
-            VideoPlaybackTheme {
-                VideoPlaybackRoot(
+            RedMediaTheme {
+                RedMediaRoot(
                     viewModel = viewModel,
                     onOpenDownloads = {
                         runCatching { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) }
