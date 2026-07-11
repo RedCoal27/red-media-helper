@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Video Playback</string>
+    <string name="download_channel_name">Media downloads</string>
+    <string name="download_channel_description">Progress for active video and audio downloads</string>
+</resources>

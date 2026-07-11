@@ -40,6 +40,14 @@ The companion runs locally on:
 http://127.0.0.1:47829
 ```
 
+## Android App
+
+The `android-helper` module is a native Android companion with a modern download
+queue. Paste a media page URL or share a link from your browser, inspect available
+qualities, and download in the background to `Download/Video Playback`.
+
+See [android-helper/README.md](android-helper/README.md) for build instructions.
+
 ## Installation
 
 Install dependencies and local tools:
