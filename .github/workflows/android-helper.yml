@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Red Media Mobile APK
+    name: Build optimized Red Media Mobile APKs
     runs-on: ubuntu-latest
 
     steps:
@@ -39,15 +39,15 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 
-      - name: Build APK
+      - name: Build optimized APKs
         working-directory: android-helper
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon assembleRelease lintRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: red-media-mobile-debug
-          path: android-helper/app/build/outputs/apk/debug/*.apk
+          name: red-media-mobile-optimized
+          path: android-helper/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
