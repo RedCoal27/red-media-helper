@@ -8,6 +8,7 @@ import com.redcoal.redmedia.mobile.download.FormatChoice
 import com.redcoal.redmedia.mobile.download.BrowserRequestContext
 import com.redcoal.redmedia.mobile.download.MediaAnalysis
 import com.redcoal.redmedia.mobile.download.MediaAnalyzer
+import com.redcoal.redmedia.mobile.download.userFacingError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -136,7 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 lastError = result.exceptionOrNull()
             }
             _analysis.value = AnalysisState.Error(
-                lastError?.message?.lineSequence()?.lastOrNull()?.take(260)
+                lastError?.let { userFacingError(it, "Unable to inspect this link") }
                     ?: "No downloadable media was found after interacting with the page"
             )
             _selectedTab.value = 0
@@ -164,8 +165,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     },
                     onFailure = { error ->
                         AnalysisState.Error(
-                            error.message?.lineSequence()?.lastOrNull()?.take(260)
-                                ?: "Unable to inspect this link"
+                            userFacingError(error, "Unable to inspect this link")
                         )
                     },
                 )
@@ -206,7 +206,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _selectedFormatId.value = media.formats.firstOrNull()?.id
                     AnalysisState.Ready(media)
                 },
-                onFailure = { error -> AnalysisState.Error(error.message ?: "Unable to inspect this link") },
+                onFailure = { error -> AnalysisState.Error(userFacingError(error, "Unable to inspect this link")) },
             )
         }
     }

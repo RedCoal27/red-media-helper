@@ -156,7 +156,7 @@ class MediaDownloadWorker(
             dao.updateStatus(
                 id,
                 DownloadStatus.FAILED,
-                error.message?.lineSequence()?.lastOrNull()?.take(240) ?: "Download failed",
+                userFacingError(error, "Download failed"),
                 System.currentTimeMillis(),
             )
             showFailedNotification(download.title)
