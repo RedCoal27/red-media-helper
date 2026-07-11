@@ -1,8 +1,11 @@
 name: Red Media Mobile
+run-name: Red Media Mobile validation (${{ github.ref_name }})
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'android-helper/**'
       - '.github/workflows/android-helper.yml'
