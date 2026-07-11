@@ -39,7 +39,7 @@ import {
 import { getDataFromSyncStoragePromise } from '../../helpers';
 import { playPauseMedia } from './modules/playPauseMedia';
 
-console.log('Red Media content script loaded');
+console.log('Red Media Helper content script loaded');
 
 let isContentEnabled = false;
 let hasRuntimeMessageListener = false;

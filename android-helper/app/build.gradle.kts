@@ -13,8 +13,8 @@ android {
         applicationId = "com.redcoal.redmedia.mobile"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -23,11 +23,37 @@ android {
         }
     }
 
+    val releaseKeystorePath = System.getenv("RED_MEDIA_KEYSTORE_PATH")
+    val releaseKeystorePassword = System.getenv("RED_MEDIA_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("RED_MEDIA_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("RED_MEDIA_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseKeystorePath,
+        releaseKeystorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    ).all { !it.isNullOrBlank() }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("stableRelease") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("stableRelease")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

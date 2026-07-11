@@ -11,6 +11,10 @@ $candidates = @(
 )
 $compiler = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
+if (Test-Path $output) {
+  Remove-Item -LiteralPath $output -Force
+}
+
 if (-not $compiler) {
   throw 'Unable to find csc.exe. Install .NET Framework build tools or run this on a standard Windows install.'
 }

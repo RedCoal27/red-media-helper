@@ -27,6 +27,7 @@ data class DownloadEntity(
 object DownloadStatus {
     const val QUEUED = "queued"
     const val RUNNING = "running"
+    const val PROCESSING = "processing"
     const val PAUSED = "paused"
     const val COMPLETE = "complete"
     const val FAILED = "failed"

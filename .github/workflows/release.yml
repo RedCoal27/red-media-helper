@@ -49,13 +49,28 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Test extension and companion contracts
+        run: npm test
+
       - name: Package release assets
         run: npm run package:release
 
       - name: Build Red Media Mobile
         working-directory: android-helper
         shell: pwsh
-        run: .\gradlew.bat --no-daemon assembleRelease
+        env:
+          RED_MEDIA_KEYSTORE_BASE64: ${{ secrets.RED_MEDIA_KEYSTORE_BASE64 }}
+          RED_MEDIA_KEYSTORE_PASSWORD: ${{ secrets.RED_MEDIA_KEYSTORE_PASSWORD }}
+          RED_MEDIA_KEY_ALIAS: ${{ secrets.RED_MEDIA_KEY_ALIAS }}
+          RED_MEDIA_KEY_PASSWORD: ${{ secrets.RED_MEDIA_KEY_PASSWORD }}
+        run: |
+          if (-not $env:RED_MEDIA_KEYSTORE_BASE64) {
+            throw 'Stable Android signing secrets are not configured.'
+          }
+          $keystore = Join-Path $env:RUNNER_TEMP 'red-media-release.jks'
+          [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:RED_MEDIA_KEYSTORE_BASE64))
+          $env:RED_MEDIA_KEYSTORE_PATH = $keystore
+          .\gradlew.bat --no-daemon assembleRelease
 
       - name: Add Android APK to release assets
         shell: pwsh

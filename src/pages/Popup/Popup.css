@@ -177,6 +177,51 @@
   min-width: 0;
 }
 
+.App-download-stage,
+.App-helper-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.App-download-stage {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.App-helper-status {
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid #4a5160;
+  border-radius: 6px;
+  background: #20242c;
+  text-align: left;
+}
+
+.App-helper-status span {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.App-helper-status small {
+  min-width: 0;
+  overflow: hidden;
+  color: #d3d8e3;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.App-helper-status .is-online {
+  color: #71e6a0;
+}
+
+.App-helper-status .is-offline {
+  color: #ffb4a8;
+}
+
 .App-download-status strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -202,6 +247,29 @@
   gap: 6px;
   max-height: 150px;
   overflow-y: auto;
+}
+
+.App-download-settings {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid #3a404d;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.App-download-settings > label:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.App-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
 }
 
 .App-download-option {
@@ -249,6 +317,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.App-audio-track span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .App-audio-track small {

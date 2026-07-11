@@ -9,7 +9,7 @@ This project is based on the original
 
 ## Components
 
-- **Red Media**: Manifest V3 browser extension.
+- **Red Media Helper**: Manifest V3 browser extension and Windows companion.
 - **Red Media Helper**: standalone Windows companion.
 - **Red Media Mobile**: Android download manager with an interactive browser.
 
@@ -20,7 +20,9 @@ This project is based on the original
 - Play, pause, restart, loop, skip, and theater controls.
 - HTML5, HLS, DASH, and yt-dlp compatible media detection.
 - Quality selection and multi-audio downloads when supported by the source.
+- Audio-language selection, MP4/MKV output, embedded subtitles, and audio-only downloads.
 - Parallel download queue with progress and cancellation.
+- Separate progress for source files, merging, finalization, and saving.
 - Interactive Android browser for pages that require user actions before media appears.
 
 DRM-protected media is not supported. Only download media you are authorized to
@@ -78,6 +80,12 @@ Local extension and Windows assets can be produced with:
 ```powershell
 npm run package:release
 ```
+
+Run the contract tests with `npm test`.
+
+Android releases use a stable signing key provided through the
+`RED_MEDIA_KEYSTORE_*` GitHub secrets. Keep an offline backup of that key; losing
+it prevents compatible updates to previously installed APKs.
 
 ## Project Structure
 
