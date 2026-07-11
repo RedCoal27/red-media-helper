@@ -1,7 +1,7 @@
 type AudioMeter = {
   audioContext: AudioContext;
   analyser: AnalyserNode;
-  frequencyData: Float32Array;
+  frequencyData: Float32Array<ArrayBuffer>;
   key: string;
   stream: MediaStream;
 };

@@ -521,7 +521,8 @@ const toDownloadOption = (
   const hasVideo =
     format.hasVideo ?? !!format.mimeType?.includes('video/');
   const hasAudio =
-    format.hasAudio ?? !!format.audioQuality ?? !!format.mimeType?.includes('audio/');
+    format.hasAudio ??
+    Boolean(format.audioQuality || format.mimeType?.includes('audio/'));
   const mediaParts = [
     hasVideo ? 'video' : null,
     hasAudio ? 'audio' : null,
