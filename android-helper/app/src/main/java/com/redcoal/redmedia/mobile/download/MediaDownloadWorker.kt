@@ -59,7 +59,12 @@ class MediaDownloadWorker(
                 .addOption("--no-playlist")
                 .addOption("--continue")
                 .addOption("--newline")
-                .addOption("--concurrent-fragments", 6)
+                .addOption("--concurrent-fragments", if (isYouTubeUrl(download.sourceUrl)) 2 else 4)
+                .addOption("--retries", 10)
+                .addOption("--fragment-retries", 10)
+                .addOption("--extractor-retries", 5)
+                .addOption("--retry-sleep", "http:linear=2::8")
+                .addOption("--retry-sleep", "fragment:linear=1::5")
                 .addOption("--no-mtime")
                 .addOption("-f", download.formatSelector)
                 .addOption("-o", File(outputDirectory, "%(title).180B [%(id)s].%(ext)s").absolutePath)
@@ -77,6 +82,9 @@ class MediaDownloadWorker(
                 request
                     .addOption("--js-runtimes", "quickjs")
                     .addOption("--extractor-args", "youtube:player_client=all")
+                    .addOption("--sleep-requests", 0.75)
+                    .addOption("--sleep-interval", 1)
+                    .addOption("--max-sleep-interval", 3)
             }
 
             if (download.audioOnly) {
@@ -98,11 +106,19 @@ class MediaDownloadWorker(
             }
 
             var finalPath: String? = download.filePath
+            val partsTotal = calculatePartsTotal(download.formatSelector)
+            val seenParts = linkedSetOf<String>()
+            var currentPart = 1
             runInterruptible(Dispatchers.IO) {
                 YoutubeDL.getInstance().execute(request, id) { progress, etaSeconds, line ->
                     val now = System.currentTimeMillis()
                     val detectedPath = extractDestination(line)
-                    if (detectedPath != null) finalPath = detectedPath
+                    if (detectedPath != null) {
+                        finalPath = detectedPath
+                        if (!isFinalOutputLine(line) && seenParts.add(detectedPath)) {
+                            currentPart = seenParts.size.coerceIn(1, partsTotal)
+                        }
+                    }
                     val isProcessing = line.contains("Merging formats", true) ||
                         line.contains("Post-process", true) ||
                         line.contains("Remuxing", true) ||
@@ -110,19 +126,32 @@ class MediaDownloadWorker(
 
                     if (now - lastUpdateAt >= 450 || progress >= 100f || detectedPath != null) {
                         lastUpdateAt = now
-                        val message = humanizeLine(line)
+                        val localProgress = progress.coerceIn(0f, 100f)
+                        val overallProgress = if (isProcessing) {
+                            96f
+                        } else {
+                            (((currentPart - 1) + localProgress / 100f) / partsTotal * 94f)
+                                .coerceIn(0f, 94f)
+                        }
+                        val message = if (isProcessing) {
+                            humanizeLine(line)
+                        } else if (partsTotal > 1) {
+                            "Downloading part $currentPart/$partsTotal · ${localProgress.toInt()}%"
+                        } else {
+                            humanizeLine(line)
+                        }
                         runBlocking(Dispatchers.IO) {
                             dao.updateProgress(
                                 id = id,
                                 status = if (isProcessing) DownloadStatus.PROCESSING else DownloadStatus.RUNNING,
-                                progress = if (isProcessing) 95f else progress.coerceIn(0f, 94f),
+                                progress = overallProgress,
                                 etaSeconds = etaSeconds,
                                 message = message,
                                 filePath = finalPath,
                                 updatedAt = now,
                             )
                         }
-                        showProgressNotification(download.title, progress.toInt(), message)
+                        showProgressNotification(download.title, overallProgress.toInt(), message)
                     }
                 }
             }
@@ -165,10 +194,20 @@ class MediaDownloadWorker(
             dao.updateStatus(id, DownloadStatus.PAUSED, "Paused", System.currentTimeMillis())
             throw error
         } catch (error: Exception) {
+            val message = userFacingError(error, "Download failed")
+            if (isRateLimitError(message) && runAttemptCount < 4) {
+                dao.updateStatus(
+                    id,
+                    DownloadStatus.QUEUED,
+                    "YouTube rate limit · automatic retry ${runAttemptCount + 1}/4",
+                    System.currentTimeMillis(),
+                )
+                return@withContext Result.retry()
+            }
             dao.updateStatus(
                 id,
                 DownloadStatus.FAILED,
-                userFacingError(error, "Download failed"),
+                message,
                 System.currentTimeMillis(),
             )
             showFailedNotification(download.title)
@@ -317,6 +356,13 @@ class MediaDownloadWorker(
             return line.substringAfter(marker).trim().trim('"', '\'').takeIf { it.isNotBlank() }
         }
 
+        private fun isFinalOutputLine(line: String) =
+            line.contains("Merging formats into", true) || line.contains("Remuxing video from", true)
+
+        private fun isRateLimitError(message: String) =
+            Regex("HTTP Error 429|Too Many Requests|rate.?limit", RegexOption.IGNORE_CASE)
+                .containsMatchIn(message)
+
         private fun humanizeLine(line: String): String {
             val compact = line.trim().replace(Regex("\\s+"), " ")
             return when {
@@ -329,4 +375,9 @@ class MediaDownloadWorker(
             }
         }
     }
+}
+
+internal fun calculatePartsTotal(selector: String): Int {
+    val primarySelector = selector.substringBefore('/')
+    return primarySelector.split('+').count(String::isNotBlank).coerceAtLeast(1)
 }

@@ -45,7 +45,7 @@ namespace RedMediaHelperLauncher
     internal sealed class HelperForm : Form
     {
         private const string AppName = "Red Media Helper";
-        private const string AppVersion = "1.5.0";
+        private const string AppVersion = "1.5.1";
         private const string HealthUrl = "http://127.0.0.1:47829/health";
         private const string JobsUrl = "http://127.0.0.1:47829/jobs";
         private const string NodeVersion = "v22.16.0";

@@ -3,6 +3,7 @@ package com.redcoal.redmedia.mobile.download
 import android.content.Context
 import androidx.core.net.toUri
 import androidx.work.ExistingWorkPolicy
+import androidx.work.BackoffPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -12,6 +13,7 @@ import com.redcoal.redmedia.mobile.data.DownloadStatus
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class DownloadRepository(
     private val context: Context,
@@ -98,6 +100,7 @@ class DownloadRepository(
     private fun enqueueWorker(id: String) {
         val request = OneTimeWorkRequestBuilder<MediaDownloadWorker>()
             .setInputData(workDataOf(MediaDownloadWorker.KEY_DOWNLOAD_ID to id))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .addTag(workName(id))
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
