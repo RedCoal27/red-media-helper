@@ -1,6 +1,6 @@
 {
   "name": "red-media-helper",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Media controls and cross-platform download helpers for browsers, Windows, and Android.",
   "license": "MIT",
   "scripts": {

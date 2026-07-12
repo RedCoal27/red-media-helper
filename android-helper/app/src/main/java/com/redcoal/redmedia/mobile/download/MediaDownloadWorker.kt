@@ -81,10 +81,7 @@ class MediaDownloadWorker(
             if (isYouTubeUrl(download.sourceUrl)) {
                 request
                     .addOption("--js-runtimes", "quickjs")
-                    .addOption("--extractor-args", "youtube:player_client=all")
-                    .addOption("--sleep-requests", 0.75)
-                    .addOption("--sleep-interval", 1)
-                    .addOption("--max-sleep-interval", 3)
+                    .addOption("--sleep-requests", 0.25)
             }
 
             if (download.audioOnly) {
@@ -109,6 +106,12 @@ class MediaDownloadWorker(
             val partsTotal = calculatePartsTotal(download.formatSelector)
             val seenParts = linkedSetOf<String>()
             var currentPart = 1
+            dao.updateStatus(
+                id,
+                DownloadStatus.RUNNING,
+                if (partsTotal > 1) "Starting $partsTotal-part download" else "Starting download",
+                System.currentTimeMillis(),
+            )
             runInterruptible(Dispatchers.IO) {
                 YoutubeDL.getInstance().execute(request, id) { progress, etaSeconds, line ->
                     val now = System.currentTimeMillis()

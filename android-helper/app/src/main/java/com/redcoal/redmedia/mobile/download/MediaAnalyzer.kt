@@ -59,8 +59,14 @@ object MediaEngine {
         withContext(Dispatchers.IO) {
             YoutubeDL.getInstance().init(context.applicationContext)
             FFmpeg.getInstance().init(context.applicationContext)
-            runCatching {
-                YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+            val preferences = context.getSharedPreferences("media-engine", Context.MODE_PRIVATE)
+            val lastUpdate = preferences.getLong("yt-dlp-updated-at", 0L)
+            if (System.currentTimeMillis() - lastUpdate >= 3 * 24 * 60 * 60 * 1_000L) {
+                runCatching {
+                    YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
+                }.onSuccess {
+                    preferences.edit().putLong("yt-dlp-updated-at", System.currentTimeMillis()).apply()
+                }
             }
         }
         initialized = true
@@ -74,26 +80,35 @@ class MediaAnalyzer(private val context: Context) {
     ): MediaAnalysis = withContext(Dispatchers.IO) {
         MediaEngine.initialize(context)
 
-        val request = YoutubeDLRequest(url)
-            .addOption("--no-playlist")
-            .addOption("--no-warnings")
-            .addOption("--dump-single-json")
-            .addOption("--skip-download")
-        if (isYouTubeUrl(url)) {
-            request
-                .addOption("--js-runtimes", "quickjs")
-                .addOption("--extractor-args", "youtube:player_client=all")
+        fun createRequest(useFastYouTubeClient: Boolean): YoutubeDLRequest {
+            val request = YoutubeDLRequest(url)
+                .addOption("--no-playlist")
+                .addOption("--no-warnings")
+                .addOption("--dump-single-json")
+                .addOption("--skip-download")
+            if (isYouTubeUrl(url)) {
+                request.addOption("--js-runtimes", "quickjs")
+                if (useFastYouTubeClient) {
+                    request.addOption("--extractor-args", "youtube:player_client=web")
+                }
+            }
+            browserContext?.referer?.takeIf { it.isNotBlank() }?.let {
+                request.addOption("--referer", it)
+            }
+            browserContext?.cookies?.takeIf { it.isNotBlank() }?.let {
+                request.addOption("--add-header", "Cookie:$it")
+            }
+            browserContext?.userAgent?.takeIf { it.isNotBlank() }?.let {
+                request.addOption("--user-agent", it)
+            }
+            return request
         }
-        browserContext?.referer?.takeIf { it.isNotBlank() }?.let {
-            request.addOption("--referer", it)
+        val response = runCatching {
+            YoutubeDL.getInstance().execute(createRequest(true), "inspect-${UUID.randomUUID()}")
+        }.getOrElse { fastError ->
+            if (!isYouTubeUrl(url)) throw fastError
+            YoutubeDL.getInstance().execute(createRequest(false), "inspect-${UUID.randomUUID()}")
         }
-        browserContext?.cookies?.takeIf { it.isNotBlank() }?.let {
-            request.addOption("--add-header", "Cookie:$it")
-        }
-        browserContext?.userAgent?.takeIf { it.isNotBlank() }?.let {
-            request.addOption("--user-agent", it)
-        }
-        val response = YoutubeDL.getInstance().execute(request, "inspect-${UUID.randomUUID()}")
         val info = JSONObject(response.out.trim())
         val formats = info.optJSONArray("formats") ?: JSONArray()
         val audioTracks = extractAudioTracks(formats)
